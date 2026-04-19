@@ -27,8 +27,10 @@ COPY --from=builder /app/node_modules ./root_modules
 COPY --from=builder /app/apps/backend/package.json ./package.json
 COPY --from=builder /app/apps/backend/prisma ./prisma
 
-# Merge hoisted deps into node_modules
-RUN cp -rn ./root_modules/* ./node_modules/ 2>/dev/null || true && rm -rf ./root_modules
+# Merge hoisted deps into node_modules.
+# Use `/.` so hidden folders like `.pnpm` are copied too; without that,
+# symlinked packages (e.g. dotenv) can be missing at runtime.
+RUN cp -a ./root_modules/. ./node_modules/ && rm -rf ./root_modules
 
 # Create uploads directory
 RUN mkdir -p uploads && chown nestjs:nestjs uploads
