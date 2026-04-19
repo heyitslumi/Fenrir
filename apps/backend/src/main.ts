@@ -4,6 +4,7 @@ import { AppModule } from './app.module.js';
 import { ValidationPipe } from '@nestjs/common';
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import { WsAdapter } from '@nestjs/platform-ws';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { join } from 'path';
 
 async function bootstrap() {
@@ -27,6 +28,15 @@ async function bootstrap() {
   app.useStaticAssets(join(process.cwd(), 'uploads'), { prefix: '/uploads' });
 
   app.setGlobalPrefix('api');
+
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Fenrir Panel API')
+    .setDescription('API documentation for Fenrir Panel')
+    .setVersion('1.0')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api/docs', app, document);
 
   await app.listen(process.env.PORT ?? 3001);
 }

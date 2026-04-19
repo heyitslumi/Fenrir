@@ -35,7 +35,7 @@ function TestEmailButton() {
   };
 
   return (
-    <div className="flex flex-col gap-2 rounded-md border border-dashed p-4">
+    <div className="flex flex-col gap-2 rounded-lg border border-dashed border-muted-foreground/25 bg-muted/30 p-4 mt-2">
       <Label className="font-medium">Send Test Email</Label>
       <p className="text-xs text-muted-foreground">
         Save your SMTP settings first, then send a test email to verify the configuration.
@@ -285,50 +285,38 @@ export default function AdminSettingsPage() {
         <TabsContent value="openapi" className="mt-4">
           <Card>
             <CardHeader>
-              <CardTitle>OpenAPI</CardTitle>
+              <CardTitle>API Documentation</CardTitle>
               <CardDescription>
-                External API for managing users, coins, resources and bans. Third-party services
-                authenticate with a Bearer token.
+                Interactive API documentation powered by Swagger / OpenAPI. View all available endpoints, schemas, and test requests directly.
               </CardDescription>
             </CardHeader>
             <CardContent className="flex flex-col gap-4">
               <div className="flex items-center gap-4">
                 <div className="flex flex-col gap-2 flex-1">
-                  <Label htmlFor="openapi-enabled">Status</Label>
-                  <select
-                    id="openapi-enabled"
-                    className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
-                    value={settings["openapi.enabled"] || "true"}
-                    onChange={(e) => handleChange("openapi.enabled", e.target.value)}
-                  >
-                    <option value="true">Enabled</option>
-                    <option value="false">Disabled</option>
-                  </select>
+                  <Label htmlFor="openapi-key">External API Key</Label>
+                  <Input
+                    id="openapi-key"
+                    type="password"
+                    placeholder="Enter a secure API key"
+                    value={settings["openapi.key"] || ""}
+                    onChange={(e) => handleChange("openapi.key", e.target.value)}
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Used by external services to authenticate via <code className="text-xs">Authorization: Bearer &lt;key&gt;</code> on <code className="text-xs">/api/openapi/v1/*</code> endpoints.
+                  </p>
                 </div>
               </div>
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="openapi-key">API Key</Label>
-                <Input
-                  id="openapi-key"
-                  type="password"
-                  placeholder="Enter a secure API key"
-                  value={settings["openapi.key"] || ""}
-                  onChange={(e) => handleChange("openapi.key", e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  External services use this key as <code className="text-xs">Authorization: Bearer &lt;key&gt;</code>.
-                  Endpoints are available at <code className="text-xs">/api/openapi/v1/*</code>.
-                </p>
-              </div>
-              <div className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground space-y-1">
-                <p className="font-medium text-foreground">Available endpoints:</p>
-                <p><code>GET /api/openapi/v1/userinfo?id=...</code> — Get user info</p>
-                <p><code>POST /api/openapi/v1/setcoins</code> — Set user coins</p>
-                <p><code>POST /api/openapi/v1/addcoins</code> — Add coins to user</p>
-                <p><code>POST /api/openapi/v1/setresources</code> — Set extra resources</p>
-                <p><code>POST /api/openapi/v1/setplan</code> — Set user package</p>
-                <p><code>POST /api/openapi/v1/ban</code> — Ban a user</p>
-                <p><code>POST /api/openapi/v1/unban</code> — Unban a user</p>
+              <div className="flex items-center gap-3">
+                <Button variant="outline" size="sm" asChild>
+                  <a href={(process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api").replace(/\/api$/, "") + "/api/docs"} target="_blank" rel="noopener noreferrer">
+                    Open Swagger UI
+                  </a>
+                </Button>
+                <Button variant="outline" size="sm" asChild>
+                  <a href={(process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001/api").replace(/\/api$/, "") + "/api/docs-json"} target="_blank" rel="noopener noreferrer">
+                    Download openapi.json
+                  </a>
+                </Button>
               </div>
             </CardContent>
           </Card>
