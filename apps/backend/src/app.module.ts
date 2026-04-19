@@ -13,7 +13,6 @@ import { CalagopusModule } from './pelican/pelican.module.js';
 import { ServersModule } from './servers/servers.module.js';
 import { StoreModule } from './store/store.module.js';
 import { AdminModule } from './admin/admin.module.js';
-import { OpenApiModule } from './openapi/openapi.module.js';
 import { AfkModule } from './afk/afk.module.js';
 import { MailModule } from './mail/mail.module.js';
 
@@ -36,7 +35,6 @@ import { MailModule } from './mail/mail.module.js';
     ServersModule,
     StoreModule,
     AdminModule,
-    OpenApiModule,
     AfkModule,
     MailModule,
   ],

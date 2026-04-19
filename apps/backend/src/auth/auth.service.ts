@@ -319,13 +319,24 @@ export class AuthService {
     });
 
     const defaultPermissions = [
+      { name: 'dashboard.read', description: 'View dashboard' },
       { name: 'users.read', description: 'View users' },
       { name: 'users.write', description: 'Create and update users' },
       { name: 'users.delete', description: 'Delete users' },
       { name: 'roles.read', description: 'View roles' },
       { name: 'roles.write', description: 'Create and update roles' },
       { name: 'roles.delete', description: 'Delete roles' },
-      { name: 'dashboard.read', description: 'View dashboard' },
+      { name: 'servers.read', description: 'View servers' },
+      { name: 'servers.write', description: 'Create and update servers' },
+      { name: 'servers.delete', description: 'Delete servers' },
+      { name: 'settings.read', description: 'View settings' },
+      { name: 'settings.write', description: 'Update settings' },
+      { name: 'eggs.read', description: 'View eggs' },
+      { name: 'eggs.write', description: 'Create and update eggs' },
+      { name: 'packages.read', description: 'View packages' },
+      { name: 'packages.write', description: 'Create and update packages' },
+      { name: 'store.read', description: 'View store' },
+      { name: 'store.write', description: 'Update store' },
     ];
 
     for (const perm of defaultPermissions) {

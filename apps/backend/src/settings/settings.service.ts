@@ -59,6 +59,6 @@ export class SettingsService {
   }
 
   async getBrand() {
-    return this.getMany(['panel.name', 'panel.logo', 'panel.logoHeight']);
+    return this.getMany(['panel.name', 'panel.logo', 'panel.logoHeight', 'auth.background', 'auth.backgroundBlur']);
   }
 }

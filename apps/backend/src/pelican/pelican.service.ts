@@ -125,8 +125,21 @@ export class CalagopusService {
     return this.request<any>(`/api/admin/users/${uuid}`);
   }
 
-  async createUser(data: { username: string; email: string; password: string; external_id?: string; admin?: boolean }) {
-    return this.request<any>('/api/admin/users', { method: 'POST', body: data });
+  async createUser(data: { username: string; email: string; password: string; external_id?: string; admin?: boolean; name?: string }) {
+    const [name_first = 'Panel', ...rest] = (data.name || data.username || 'Panel User').split(' ');
+    const name_last = rest.join(' ') || 'User';
+    return this.request<any>('/api/admin/users', {
+      method: 'POST',
+      body: {
+        username: data.username,
+        email: data.email,
+        password: data.password,
+        name_first,
+        name_last,
+        ...(data.external_id ? { external_id: data.external_id } : {}),
+        ...(data.admin !== undefined ? { root_admin: data.admin } : {}),
+      },
+    });
   }
 
   async updateUser(uuid: string, data: { password?: string; username?: string; email?: string }) {

@@ -20,8 +20,10 @@ export class StoreService {
     });
     if (!resources) {
       const defaultPkg = await this.prisma.package.findFirst({ where: { isDefault: true } });
-      resources = await this.prisma.userResources.create({
-        data: { userId, packageId: defaultPkg?.id ?? null },
+      resources = await this.prisma.userResources.upsert({
+        where: { userId },
+        create: { userId, packageId: defaultPkg?.id ?? null },
+        update: {},
         include: { package: true },
       });
     }

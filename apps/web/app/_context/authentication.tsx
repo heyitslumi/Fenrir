@@ -119,11 +119,11 @@ export function AuthenticationProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!isLoading) {
-      const isAuthPage =
-        pathname.startsWith('/authentication');
+      const isAuthPage = pathname.startsWith('/authentication');
+      const isOAuthCallback = pathname.startsWith('/authentication/oauth');
       if (!user && !isAuthPage) {
         router.replace('/authentication/login');
-      } else if (user && isAuthPage) {
+      } else if (user && isAuthPage && !isOAuthCallback) {
         router.replace('/');
       }
     }

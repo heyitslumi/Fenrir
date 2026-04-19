@@ -149,6 +149,14 @@ export const api = {
       delete: (token: string, id: string) =>
         request<{ message: string }>(`/auth/sessions/${id}`, { method: 'DELETE', token }),
     },
+
+    oauth: {
+      linked: (token: string) =>
+        request<{ provider: string; providerUid: string; username: string | null; createdAt: string }[]>('/auth/oauth/linked', { token }),
+
+      unlink: (token: string, provider: string) =>
+        request<{ message: string }>(`/auth/oauth/linked/${provider}`, { method: 'DELETE', token }),
+    },
   },
 
   users: {
@@ -602,6 +610,8 @@ export interface BrandConfig {
   'panel.name'?: string;
   'panel.logo'?: string;
   'panel.logoHeight'?: string;
+  'auth.background'?: string;
+  'auth.backgroundBlur'?: string;
 }
 
 export interface AdminPermission {

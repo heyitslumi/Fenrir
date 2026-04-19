@@ -99,9 +99,6 @@ export default function AdminSettingsPage() {
       if (payload['panel.apiKey']?.endsWith('...')) {
         delete payload['panel.apiKey'];
       }
-      if (payload['openapi.key']?.endsWith('...')) {
-        delete payload['openapi.key'];
-      }
       if (payload['mail.pass'] === '••••••••') {
         delete payload['mail.pass'];
       }
@@ -144,7 +141,6 @@ export default function AdminSettingsPage() {
           <TabsTrigger value="panel">Panel Connection</TabsTrigger>
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="economy">Economy</TabsTrigger>
-          <TabsTrigger value="openapi">OpenAPI</TabsTrigger>
           <TabsTrigger value="afk">AFK</TabsTrigger>
           <TabsTrigger value="email">Email</TabsTrigger>
           <TabsTrigger value="oauth">OAuth</TabsTrigger>
@@ -231,6 +227,33 @@ export default function AdminSettingsPage() {
                 </p>
               </div>
               <div className="flex flex-col gap-2">
+                <Label htmlFor="auth-background">Login Background Image URL</Label>
+                <Input
+                  id="auth-background"
+                  placeholder="https://example.com/background.jpg"
+                  value={settings["auth.background"] || ""}
+                  onChange={(e) => handleChange("auth.background", e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Full-page background image shown on login and register pages. Leave empty for no background.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="auth-background-blur">Background Blur Amount (px)</Label>
+                <Input
+                  id="auth-background-blur"
+                  type="number"
+                  min="0"
+                  max="20"
+                  placeholder="4"
+                  value={settings["auth.backgroundBlur"] || ""}
+                  onChange={(e) => handleChange("auth.backgroundBlur", e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  Blur intensity for the background image. Default is 4px. Set to 0 for no blur.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="panel-currency">Currency Name</Label>
                 <Input
                   id="panel-currency"
@@ -282,46 +305,6 @@ export default function AdminSettingsPage() {
                     onChange={(e) => handleChange("daily.amount", e.target.value)}
                   />
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="openapi" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>API Documentation</CardTitle>
-              <CardDescription>
-                Interactive API documentation powered by Swagger / OpenAPI. View all available endpoints, schemas, and test requests directly.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-4">
-              <div className="flex items-center gap-4">
-                <div className="flex flex-col gap-2 flex-1">
-                  <Label htmlFor="openapi-key">External API Key</Label>
-                  <Input
-                    id="openapi-key"
-                    type="password"
-                    placeholder="Enter a secure API key"
-                    value={settings["openapi.key"] || ""}
-                    onChange={(e) => handleChange("openapi.key", e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Used by external services to authenticate via <code className="text-xs">Authorization: Bearer &lt;key&gt;</code> on <code className="text-xs">/api/openapi/v1/*</code> endpoints.
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <Button variant="outline" size="sm" asChild>
-                  <a href={((typeof window !== 'undefined' ? ((window as any).__ENV__?.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_URL) : process.env.NEXT_PUBLIC_API_URL) || "http://localhost:3001/api").replace(/\/api$/, "") + "/api/docs"} target="_blank" rel="noopener noreferrer">
-                    Open Swagger UI
-                  </a>
-                </Button>
-                <Button variant="outline" size="sm" asChild>
-                  <a href={((typeof window !== 'undefined' ? ((window as any).__ENV__?.NEXT_PUBLIC_API_URL || process.env.NEXT_PUBLIC_API_URL) : process.env.NEXT_PUBLIC_API_URL) || "http://localhost:3001/api").replace(/\/api$/, "") + "/api/docs-json"} target="_blank" rel="noopener noreferrer">
-                    Download openapi.json
-                  </a>
-                </Button>
               </div>
             </CardContent>
           </Card>
