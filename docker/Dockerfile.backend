@@ -35,9 +35,12 @@ RUN npx prisma generate --schema ./prisma/schema.prisma
 # Create uploads directory
 RUN mkdir -p uploads && chown -R nestjs:nestjs uploads ./generated
 
+RUN printf '#!/bin/sh\nset -e\necho "Running database migrations..."\nnpx prisma migrate deploy --schema ./prisma/schema.prisma\necho "Starting application..."\nexec node dist/src/main.js\n' > /app/entrypoint.sh && \
+    chmod +x /app/entrypoint.sh
+
 USER nestjs
 
 EXPOSE 3001
 ENV PORT=3001
 
-CMD ["node", "dist/src/main.js"]
+CMD ["/app/entrypoint.sh"]
