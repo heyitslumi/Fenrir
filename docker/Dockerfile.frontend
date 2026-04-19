@@ -1,39 +1,19 @@
-# ── Stage 1: Build ──
-FROM node:20-alpine AS builder
+FROM node:20-alpine
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 WORKDIR /app
 
-# Copy everything and install
+# Copy source and install all deps (including devDeps needed for build)
 COPY . .
 RUN pnpm install --frozen-lockfile
 
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN pnpm --filter web build
-
-# ── Stage 2: Production ──
-FROM node:20-alpine AS runner
-WORKDIR /app
-
 ENV NODE_ENV=production
-ENV NEXT_TELEMETRY_DISABLED=1
-
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nextjs
-
-# Copy standalone build
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
-
-# Copy public if it exists
-RUN mkdir -p /app/apps/web/public
-COPY --from=builder /app/apps/web/public* ./apps/web/public/
-
-RUN printf '#!/bin/sh\nset -e\nPLACEHOLDER="http://localhost:3001/api"\nACTUAL="${NEXT_PUBLIC_API_URL:-$PLACEHOLDER}"\nif [ "$ACTUAL" != "$PLACEHOLDER" ]; then\n  echo "Patching API URL: $PLACEHOLDER -> $ACTUAL"\n  find /app -type f \\( -name "*.js" -o -name "*.html" -o -name "*.rsc" \\) | xargs sed -i "s|$PLACEHOLDER|$ACTUAL|g" 2>/dev/null || true\nfi\nexec node apps/web/server.js\n' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
-
-USER nextjs
-
-EXPOSE 3000
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
+
+EXPOSE 3000
+
+# Build at startup so NEXT_PUBLIC_API_URL is baked in from the runtime env
+RUN printf '#!/bin/sh\nset -e\necho "Building frontend with API URL: ${NEXT_PUBLIC_API_URL:-http://localhost:3001/api}"\npnpm --filter web build\ncp -r apps/web/.next/static apps/web/.next/standalone/apps/web/.next/static 2>/dev/null || true\ncp -r apps/web/public apps/web/.next/standalone/apps/web/public 2>/dev/null || true\necho "Starting..."\nexec node apps/web/.next/standalone/apps/web/server.js\n' > /app/entrypoint.sh && chmod +x /app/entrypoint.sh
 
 CMD ["/app/entrypoint.sh"]
