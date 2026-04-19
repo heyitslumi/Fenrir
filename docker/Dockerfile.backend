@@ -12,6 +12,7 @@ RUN cd apps/backend && npx prisma generate && npx nest build
 
 # ── Stage 2: Production ──
 FROM node:20-alpine AS runner
+RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 WORKDIR /app
 
 ENV NODE_ENV=production
@@ -19,21 +20,20 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nestjs && \
     adduser --system --uid 1001 nestjs
 
-# Copy built output and deps
+# Copy built output
 COPY --from=builder /app/apps/backend/dist ./dist
 COPY --from=builder /app/apps/backend/generated ./generated
-COPY --from=builder /app/apps/backend/node_modules ./node_modules
-COPY --from=builder /app/node_modules ./root_modules
-COPY --from=builder /app/apps/backend/package.json ./package.json
 COPY --from=builder /app/apps/backend/prisma ./prisma
+COPY --from=builder /app/apps/backend/package.json ./package.json
 
-# Merge hoisted deps into node_modules.
-# Use `/.` so hidden folders like `.pnpm` are copied too; without that,
-# symlinked packages (e.g. dotenv) can be missing at runtime.
-RUN cp -a ./root_modules/. ./node_modules/ && rm -rf ./root_modules
+# Install only production dependencies (no symlink store issues)
+RUN pnpm install --prod --no-frozen-lockfile --ignore-scripts
+
+# Re-generate Prisma client against the installed engine
+RUN npx prisma generate --schema ./prisma/schema.prisma
 
 # Create uploads directory
-RUN mkdir -p uploads && chown nestjs:nestjs uploads
+RUN mkdir -p uploads && chown -R nestjs:nestjs uploads ./generated
 
 USER nestjs
 
