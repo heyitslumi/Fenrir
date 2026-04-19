@@ -1,0 +1,29 @@
+# Dependencies
+node_modules
+
+# Build
+dist
+
+# Prisma generated client
+generated
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Uploads
+uploads/*
+!uploads/.gitkeep
+
+# Debug
+npm-debug.log*
+
+# OS
+.DS_Store
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo

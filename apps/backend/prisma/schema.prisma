@@ -1,0 +1,196 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String?
+  avatar    String?
+  roleId    String
+  role      Role     @relation(fields: [roleId], references: [id])
+  sessions  Session[]
+  passkeys  Passkey[]
+  resources UserResources?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Passkey {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credentialId    String   @unique
+  publicKey       Bytes
+  counter         BigInt   @default(0)
+  deviceType      String   @default("singleDevice")
+  backedUp        Boolean  @default(false)
+  transports      String[] @default([])
+  name            String   @default("My Passkey")
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Role {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  description String?
+  isDefault   Boolean          @default(false)
+  users       User[]
+  permissions RolePermission[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model Permission {
+  id          String           @id @default(uuid())
+  name        String           @unique
+  description String?
+  roles       RolePermission[]
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+}
+
+model RolePermission {
+  roleId       String
+  permissionId String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@id([roleId, permissionId])
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token        String   @unique
+  refreshToken String   @unique
+  ipAddress    String?
+  userAgent    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ─── Panel Settings (stored in DB, not .env) ───
+
+model Setting {
+  key       String   @id
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Eggs (server templates mapped from Calagopus) ───
+
+model Egg {
+  id           String   @id @default(uuid())
+  name         String   @unique
+  displayName  String
+  category     String   @default("Game Servers")
+  logo         String?
+  free         Boolean  @default(true)
+  remoteUuid   String   @unique              // UUID of this egg on the Calagopus panel
+  nestUuid     String                        // UUID of the nest this egg belongs to
+  dockerImage  String
+  dockerImages Json     @default("{}")    // {"Label": "image:tag"} map of available images
+  startup      String
+  environment  Json     @default("{}")
+  featureLimits Json    @default("{}")
+  minRam       Int      @default(256)
+  minDisk      Int      @default(256)
+  minCpu       Int      @default(50)
+  maxRam       Int      @default(8192)
+  maxDisk      Int      @default(10240)
+  maxCpu       Int      @default(200)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+// ─── Locations ───
+
+model Location {
+  id         String   @id @default(uuid())
+  remoteUuid String   @unique              // UUID of this location on the Calagopus panel
+  name       String
+  short      String
+  country    String?
+  flag       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// ─── Nodes (synced from Calagopus) ───
+
+model Node {
+  id          String   @id @default(uuid())
+  remoteUuid  String   @unique              // UUID of this node on the Calagopus panel
+  name        String
+  fqdn        String
+  memory      Int      @default(0)
+  disk        Int      @default(0)
+  locationUuid String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ─── Packages (resource plans) ───
+
+model Package {
+  id        String          @id @default(uuid())
+  name      String          @unique
+  ram       Int             @default(2048)
+  disk      Int             @default(3072)
+  cpu       Int             @default(100)
+  servers   Int             @default(2)
+  isDefault Boolean         @default(false)
+  sortOrder Int             @default(0)
+  users     UserResources[]
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+// ─── User Resources (extra purchased resources + coins) ───
+
+model UserResources {
+  id         String   @id @default(uuid())
+  userId     String   @unique
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  extraRam   Int      @default(0)
+  extraDisk  Int      @default(0)
+  extraCpu   Int      @default(0)
+  extraServers Int    @default(0)
+  coins      Float    @default(0)
+  packageId  String?
+  package    Package? @relation(fields: [packageId], references: [id])
+  calagopusId String?                       // UUID of this user on the Calagopus panel
+  lastDailyClaim DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+// ─── Store config ───
+
+model StoreItem {
+  id       String @id @default(uuid())
+  resource String @unique
+  cost     Int
+  per      Int
+  limit    Int
+  enabled  Boolean @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
