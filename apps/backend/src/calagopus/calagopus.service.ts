@@ -362,6 +362,41 @@ export class CalagopusService {
     return this.request<any>(`/api/client/servers/${serverUuid}/files/upload`);
   }
 
+  async clientInstallPlugin(serverUuid: string, downloadUrl: string, filename: string) {
+    const { url, apiKey } = await this.getConfig();
+
+    // Download the jar from Modrinth
+    const dlRes = await fetch(downloadUrl);
+    if (!dlRes.ok) throw new BadRequestException(`Failed to download plugin: ${dlRes.status}`);
+    const jarBuffer = await dlRes.arrayBuffer();
+
+    // Ensure /plugins directory exists
+    try {
+      await this.request<any>(`/api/client/servers/${serverUuid}/files/create-directory`, {
+        method: 'POST',
+        body: { root: '/', name: 'plugins' },
+      });
+    } catch { /* already exists */ }
+
+    // Upload via the panel's file upload endpoint
+    const uploadRes = await this.request<any>(`/api/client/servers/${serverUuid}/files/upload`);
+    const uploadUrl: string = uploadRes?.url ?? uploadRes;
+
+    const form = new FormData();
+    form.append('files', new Blob([jarBuffer], { type: 'application/java-archive' }), filename);
+
+    const writeRes = await fetch(`${uploadUrl}&directory=%2Fplugins`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiKey}` },
+      body: form,
+    });
+    if (!writeRes.ok) {
+      const err = await writeRes.json().catch(() => null);
+      throw new BadRequestException(err?.errors?.[0]?.detail || `Upload failed: ${writeRes.status}`);
+    }
+    return { success: true, file: `/plugins/${filename}` };
+  }
+
   // ── Client API: Backups ──
 
   async clientListBackups(serverUuid: string) {

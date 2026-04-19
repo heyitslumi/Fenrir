@@ -570,6 +570,11 @@ export class ServersService {
     return this.calagopus.clientUpdateDockerImage(serverUuid, image);
   }
 
+  async installPlugin(userId: string, serverUuid: string, downloadUrl: string, filename: string) {
+    await this.verifyOwnership(userId, serverUuid);
+    return this.calagopus.clientInstallPlugin(serverUuid, downloadUrl, filename);
+  }
+
   // ── Settings ──
 
   async renameServer(userId: string, serverUuid: string, name: string) {

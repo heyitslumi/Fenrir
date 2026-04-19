@@ -269,6 +269,18 @@ export class ServersController {
     return this.serversService.updateDockerImage(req.user.id, uuid, body.image);
   }
 
+  // ── Plugins ──
+
+  @Post(':uuid/plugins/install')
+  @Throttle({ short: { ttl: 10000, limit: 3 }, medium: { ttl: 60000, limit: 10 } })
+  async installPlugin(
+    @Request() req: any,
+    @Param('uuid') uuid: string,
+    @Body() body: { downloadUrl: string; filename: string },
+  ) {
+    return this.serversService.installPlugin(req.user.id, uuid, body.downloadUrl, body.filename);
+  }
+
   // ── Settings ──
 
   @Post(':uuid/rename')

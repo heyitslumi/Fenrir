@@ -11,6 +11,7 @@ import { SearchAddon } from '@xterm/addon-search';
 import '@xterm/xterm/css/xterm.css';
 import { getAccessToken } from '@/lib/auth';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@workspace/ui/components/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@workspace/ui/components/select';
 import { Button } from '@workspace/ui/components/button';
 import { Badge } from '@workspace/ui/components/badge';
 import { Input } from '@workspace/ui/components/input';
@@ -49,6 +50,7 @@ import {
   MinusIcon,
   HistoryIcon,
   MoreHorizontalIcon,
+  Puzzle as PuzzleIcon,
 } from 'lucide-react';
 import Link from 'next/link';
 import {
@@ -66,7 +68,7 @@ import {
   DialogTitle,
 } from '@workspace/ui/components/dialog';
 
-type Tab = 'console' | 'files' | 'backups' | 'startup' | 'resources' | 'settings' | 'activity';
+type Tab = 'console' | 'files' | 'backups' | 'startup' | 'resources' | 'settings' | 'activity' | 'plugins';
 
 interface FileEntry {
   name: string;
@@ -174,6 +176,17 @@ export default function ServerDetailPage() {
   // Activity state
   const [activities, setActivities] = useState<any[]>([]);
   const [activityLoading, setActivityLoading] = useState(false);
+
+  // Plugins state
+  const [pluginSearch, setPluginSearch] = useState('');
+  const [pluginResults, setPluginResults] = useState<any[]>([]);
+  const [pluginSearching, setPluginSearching] = useState(false);
+  const [pluginProgress, setPluginProgress] = useState<Record<string, { label: string; pct: number }>>({});
+  const [pluginMsg, setPluginMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [pluginLoader, setPluginLoader] = useState('');
+  const [pluginCategory, setPluginCategory] = useState('');
+  const [installedPlugins, setInstalledPlugins] = useState<Set<string>>(new Set());
+  const [installedPluginFiles, setInstalledPluginFiles] = useState<any[]>([]);
 
   // Egg logo + config
   const [eggLogo, setEggLogo] = useState<string | null>(null);
@@ -638,6 +651,46 @@ export default function ServerDetailPage() {
     if (tab === 'startup') loadStartup();
   }, [tab]);
 
+  // ── Plugins ──
+
+  const searchPlugins = useCallback((query: string, loader = pluginLoader, category = pluginCategory) => {
+    setPluginSearching(true);
+    setPluginMsg(null);
+    const facetGroups: string[][] = [[`project_type:plugin`]];
+    if (loader) facetGroups.push([`categories:${loader}`]);
+    if (category) facetGroups.push([`categories:${category}`]);
+    const facets = JSON.stringify(facetGroups);
+    const base = query.trim()
+      ? `https://api.modrinth.com/v2/search?query=${encodeURIComponent(query)}&limit=20`
+      : `https://api.modrinth.com/v2/search?limit=20&index=downloads`;
+    fetch(`${base}&facets=${encodeURIComponent(facets)}`)
+      .then((r) => r.json())
+      .then((d) => setPluginResults(d.hits ?? []))
+      .catch(() => setPluginResults([]))
+      .finally(() => setPluginSearching(false));
+  }, [pluginLoader, pluginCategory]);
+
+  const loadInstalledPlugins = useCallback(async () => {
+    if (!token) return;
+    try {
+      const res = await api.servers.files.list(token, uuid, '/plugins');
+      const files: any[] = res?.data ?? res?.files ?? res ?? [];
+      const jars = files.filter((f: any) => f.file && (f.name as string).endsWith('.jar'));
+      setInstalledPluginFiles(jars);
+      setInstalledPlugins(new Set(jars.map((f: any) => f.name as string)));
+    } catch {
+      setInstalledPlugins(new Set());
+      setInstalledPluginFiles([]);
+    }
+  }, [token, uuid]);
+
+  useEffect(() => {
+    if (tab === 'plugins') {
+      searchPlugins('');
+      loadInstalledPlugins();
+    }
+  }, [tab]);
+
   // ── Activity ──
 
   const loadActivity = useCallback(async () => {
@@ -757,18 +810,24 @@ export default function ServerDetailPage() {
     );
   }
 
+  const isMinecraftServer =
+    matchedEgg?.category?.toLowerCase() === 'minecraft' ||
+    /minecraft/i.test(matchedEgg?.name ?? '') ||
+    /minecraft/i.test(server?.egg?.name ?? '');
+
   const tabs: { key: Tab; label: string; icon: React.ReactNode }[] = [
     { key: 'console', label: 'Console', icon: <TerminalIcon className="size-4" /> },
     { key: 'files', label: 'Files', icon: <FolderIcon className="size-4" /> },
     { key: 'backups', label: 'Backups', icon: <DatabaseIcon className="size-4" /> },
     { key: 'startup', label: 'Startup', icon: <CpuIcon className="size-4" /> },
+    ...(isMinecraftServer ? [{ key: 'plugins' as Tab, label: 'Plugins', icon: <PuzzleIcon className="size-4" /> }] : []),
     { key: 'resources', label: 'Resources', icon: <CoinsIcon className="size-4" /> },
     { key: 'settings', label: 'Settings', icon: <SettingsIcon className="size-4" /> },
     { key: 'activity', label: 'Activity', icon: <ClockIcon className="size-4" /> },
   ];
 
   return (
-    <div className={`flex flex-1 flex-col gap-4 p-6 min-w-0 ${tab === 'console' ? 'overflow-hidden' : ''}`}>
+    <div className="flex flex-1 flex-col gap-4 p-6 min-w-0">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Button variant="ghost" size="sm" asChild>
@@ -1388,6 +1447,200 @@ export default function ServerDetailPage() {
               </Button>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* ═══ PLUGINS TAB ═══ */}
+      {tab === 'plugins' && (
+        <div className="space-y-4">
+        {installedPluginFiles.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Installed Plugins</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-wrap gap-2">
+                {installedPluginFiles.map((f: any) => (
+                  <div key={f.name} className="flex items-center gap-1.5 rounded-lg border bg-muted/30 px-3 py-1.5">
+                    <PuzzleIcon className="size-3.5 text-muted-foreground shrink-0" />
+                    <span className="text-sm font-medium">{(f.name as string).replace(/\.jar$/i, '')}</span>
+                    <Badge variant="secondary" className="text-[10px] ml-1">jar</Badge>
+                    {f.size != null && (
+                      <span className="text-[11px] text-muted-foreground">{(f.size / 1024).toFixed(0)} KB</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+        <Card>
+          <CardContent className="space-y-4">
+            {pluginMsg && (
+              <div className={`rounded-md p-3 text-sm ${
+                pluginMsg.type === 'success' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-destructive/10 text-destructive'
+              }`}>
+                {pluginMsg.text}
+              </div>
+            )}
+            <div className="flex gap-2">
+              <Input
+                placeholder="Search plugins on Modrinth…"
+                value={pluginSearch}
+                onChange={(e) => setPluginSearch(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') searchPlugins(pluginSearch); }}
+              />
+              <Button
+                variant="outline"
+                onClick={() => searchPlugins(pluginSearch)}
+                disabled={pluginSearching}
+              >
+                <SearchIcon className="size-4" />
+              </Button>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              <Select
+                value={pluginLoader || '__all__'}
+                onValueChange={(v) => { const val = v === '__all__' ? '' : v; setPluginLoader(val); searchPlugins(pluginSearch, val, pluginCategory); }}
+              >
+                <SelectTrigger className="w-40">
+                  <SelectValue placeholder="All loaders" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All loaders</SelectItem>
+                  <SelectItem value="paper">Paper</SelectItem>
+                  <SelectItem value="purpur">Purpur</SelectItem>
+                  <SelectItem value="spigot">Spigot</SelectItem>
+                  <SelectItem value="bukkit">Bukkit</SelectItem>
+                  <SelectItem value="folia">Folia</SelectItem>
+                  <SelectItem value="bungeecord">BungeeCord</SelectItem>
+                  <SelectItem value="waterfall">Waterfall</SelectItem>
+                  <SelectItem value="velocity">Velocity</SelectItem>
+                </SelectContent>
+              </Select>
+              <Select
+                value={pluginCategory || '__all__'}
+                onValueChange={(v) => { const val = v === '__all__' ? '' : v; setPluginCategory(val); searchPlugins(pluginSearch, pluginLoader, val); }}
+              >
+                <SelectTrigger className="w-44">
+                  <SelectValue placeholder="All categories" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__all__">All categories</SelectItem>
+                  <SelectItem value="admin-tools">Admin Tools</SelectItem>
+                  <SelectItem value="chat">Chat</SelectItem>
+                  <SelectItem value="economy">Economy</SelectItem>
+                  <SelectItem value="game-mechanics">Game Mechanics</SelectItem>
+                  <SelectItem value="management">Management</SelectItem>
+                  <SelectItem value="minigame">Minigame</SelectItem>
+                  <SelectItem value="mobs">Mobs</SelectItem>
+                  <SelectItem value="optimization">Optimization</SelectItem>
+                  <SelectItem value="protection">Protection</SelectItem>
+                  <SelectItem value="pvp">PvP</SelectItem>
+                  <SelectItem value="social">Social</SelectItem>
+                  <SelectItem value="transportation">Transportation</SelectItem>
+                  <SelectItem value="utility">Utility</SelectItem>
+                  <SelectItem value="world-management">World Management</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            {pluginSearching ? (
+              <div className="space-y-2">
+                {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}
+              </div>
+            ) : pluginResults.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-8">No plugins found. Try a different search.</p>
+            ) : (
+              <div className="space-y-2">
+                {pluginResults.map((plugin: any) => (
+                  <div key={plugin.project_id} className="rounded-lg border bg-muted/20 overflow-hidden">
+                    <div className="flex items-center gap-3 p-3">
+                    {plugin.icon_url ? (
+                      <img src={plugin.icon_url} alt={plugin.title} className="size-10 rounded-md object-contain shrink-0" />
+                    ) : (
+                      <div className="size-10 rounded-md bg-muted flex items-center justify-center shrink-0">
+                        <PuzzleIcon className="size-5 text-muted-foreground" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-sm truncate">{plugin.title}</p>
+                        <span className="shrink-0 text-xs text-muted-foreground">{plugin.downloads?.toLocaleString()} downloads</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground line-clamp-1">{plugin.description}</p>
+                      <div className="flex gap-1 mt-1 flex-wrap">
+                        {(plugin.categories ?? []).slice(0, 3).map((c: string) => (
+                          <span key={c} className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground">{c}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <div className="shrink-0 flex flex-col items-end gap-1">
+                      {(() => {
+                        const slug = plugin.slug ?? plugin.title?.toLowerCase().replace(/\s+/g, '-');
+                        const isInstalled = plugin.files?.some((f: any) => installedPlugins.has(f.filename)) ||
+                          [...installedPlugins].some((name) => name.toLowerCase().startsWith(slug?.toLowerCase() ?? '\0'));
+                        return isInstalled ? (
+                          <Badge variant="secondary" className="text-[10px]">Installed</Badge>
+                        ) : null;
+                      })()}
+                      <Button
+                        size="sm"
+                        disabled={!!pluginProgress?.[plugin.project_id]}
+                        onClick={async () => {
+                          if (!token) return;
+                          const pid = plugin.project_id;
+                          const step = (label: string, pct: number) => setPluginProgress((p) => ({ ...p, [pid]: { label, pct } }));
+                          const clear = () => setPluginProgress((p) => { const n = { ...p }; delete n[pid]; return n; });
+                          setPluginMsg(null);
+                          try {
+                            step('Fetching version…', 20);
+                            const vRes = await fetch(`https://api.modrinth.com/v2/project/${pid}/version?loaders=["bukkit","spigot","paper","purpur","folia","bungeecord","waterfall","velocity"]&featured=true`);
+                            const versions = await vRes.json();
+                            const ver = Array.isArray(versions) && versions.length > 0 ? versions[0] : null;
+                            const file = ver?.files?.find((f: any) => f.primary) ?? ver?.files?.[0];
+                            if (!file) throw new Error('No downloadable file found for this plugin.');
+                            step('Downloading…', 55);
+                            await api.servers.plugins.install(token, uuid, file.url, file.filename);
+                            step('Installing…', 90);
+                            await new Promise((r) => setTimeout(r, 400));
+                            clear();
+                            setPluginMsg({ type: 'success', text: `${plugin.title} installed to /plugins/${file.filename}` });
+                            loadInstalledPlugins();
+                          } catch (err: any) {
+                            clear();
+                            setPluginMsg({ type: 'error', text: err.message });
+                          }
+                        }}
+                      >
+                        {pluginProgress?.[plugin.project_id] ? (
+                          <RefreshCcwIcon className="size-3.5 animate-spin" />
+                        ) : (
+                          <DownloadIcon className="size-3.5 mr-1" />
+                        )}
+                        {pluginProgress?.[plugin.project_id] ? '' : 'Install'}
+                      </Button>
+                    </div>
+                    </div>
+                    {pluginProgress?.[plugin.project_id] && (
+                      <div className="px-3 pb-2.5 space-y-1">
+                        <div className="flex justify-between text-[11px] text-muted-foreground">
+                          <span>{pluginProgress[plugin.project_id]!.label}</span>
+                          <span>{pluginProgress[plugin.project_id]!.pct}%</span>
+                        </div>
+                        <div className="h-1.5 w-full rounded-full bg-muted overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-primary transition-all duration-500 ease-out"
+                            style={{ width: `${pluginProgress[plugin.project_id]!.pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
         </div>
       )}
 

@@ -344,6 +344,12 @@ export const api = {
     reinstall: (token: string, uuid: string, truncateDirectory = true) =>
       request<any>(`/servers/${uuid}/reinstall`, { method: 'POST', token, body: { truncate_directory: truncateDirectory } }),
 
+    // Plugins
+    plugins: {
+      install: (token: string, uuid: string, downloadUrl: string, filename: string) =>
+        request<{ success: boolean; file: string }>(`/servers/${uuid}/plugins/install`, { method: 'POST', token, body: { downloadUrl, filename } }),
+    },
+
     // Activity
     activity: (token: string, uuid: string, page = 1) =>
       request<any>(`/servers/${uuid}/activity?page=${page}`, { token }),
