@@ -1,6 +1,4 @@
-const API_BASE: string = (typeof window !== 'undefined' && (window as any).__ENV__?.NEXT_PUBLIC_API_URL)
-  || process.env.NEXT_PUBLIC_API_URL
-  || 'http://localhost:3001/api';
+const API_BASE: string = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api';
 
 interface RequestOptions {
   method?: string;
