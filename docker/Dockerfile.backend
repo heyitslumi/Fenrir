@@ -29,6 +29,9 @@ COPY --from=builder /app/apps/backend/package.json ./package.json
 # Install only production dependencies (no symlink store issues)
 RUN pnpm install --prod --no-frozen-lockfile --ignore-scripts
 
+# Write a plain ESM prisma.config.js for runtime (replaces the TS source)
+RUN printf 'import { defineConfig } from "prisma/config";\nexport default defineConfig({\n  schema: "prisma/schema.prisma",\n  migrations: { path: "prisma/migrations" },\n  datasource: { url: process.env.DATABASE_URL },\n});\n' > /app/prisma.config.js
+
 # Re-generate Prisma client against the installed engine
 RUN npx prisma generate --schema ./prisma/schema.prisma
 
