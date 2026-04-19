@@ -74,7 +74,7 @@ export default function AdminPackagesPage() {
   if (loading) return <div className="flex items-center justify-center py-20"><p className="text-muted-foreground">Loading...</p></div>;
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-6 p-6 overflow-auto">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Packages</h1>

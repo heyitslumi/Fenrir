@@ -9,8 +9,8 @@ RUN pnpm install --frozen-lockfile
 
 # Generate Prisma client and build
 RUN cd apps/backend && \
-    node_modules/.bin/prisma generate && \
-    node_modules/.bin/nest build
+    pnpm exec prisma generate && \
+    pnpm exec nest build
 
 # ── Stage 2: Production ──
 FROM node:22-alpine AS runner
@@ -35,12 +35,12 @@ RUN pnpm install --prod --no-frozen-lockfile --ignore-scripts
 RUN printf 'import { defineConfig } from "prisma/config";\nexport default defineConfig({\n  schema: "prisma/schema.prisma",\n  migrations: { path: "prisma/migrations" },\n  datasource: { url: process.env.DATABASE_URL },\n});\n' > /app/prisma.config.js
 
 # Re-generate Prisma client against the installed engine
-RUN npx prisma generate --schema ./prisma/schema.prisma
+RUN node_modules/.bin/prisma generate
 
 # Create uploads directory
 RUN mkdir -p uploads && chown -R nestjs:nestjs uploads ./generated
 
-RUN printf '#!/bin/sh\nset -e\necho "Running database migrations..."\nnpx prisma migrate deploy --schema ./prisma/schema.prisma\necho "Starting application..."\nexec node dist/src/main.js\n' > /app/entrypoint.sh && \
+RUN printf '#!/bin/sh\nset -e\necho "Running database migrations..."\nDATABASE_URL="$DATABASE_URL" node_modules/.bin/prisma migrate deploy\necho "Starting application..."\nexec node dist/src/main.js\n' > /app/entrypoint.sh && \
     chmod +x /app/entrypoint.sh
 
 USER nestjs

@@ -105,6 +105,10 @@ export default function AdminSettingsPage() {
       if (payload['mail.pass'] === '••••••••') {
         delete payload['mail.pass'];
       }
+      // Don't send masked OAuth secrets back
+      for (const key of ['oauth.discord.secret', 'oauth.google.secret', 'oauth.github.secret']) {
+        if (payload[key] === '••••••••') delete payload[key];
+      }
       await api.settings.update(token, payload);
       setMessage({ type: 'success', text: 'Settings saved successfully' });
     } catch (err: any) {
@@ -123,7 +127,7 @@ export default function AdminSettingsPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-1 flex-col gap-6 p-6 overflow-auto">
       <div>
         <h1 className="text-2xl font-bold">Settings</h1>
         <p className="text-muted-foreground">Configure your panel connection and features.</p>
@@ -143,6 +147,7 @@ export default function AdminSettingsPage() {
           <TabsTrigger value="openapi">OpenAPI</TabsTrigger>
           <TabsTrigger value="afk">AFK</TabsTrigger>
           <TabsTrigger value="email">Email</TabsTrigger>
+          <TabsTrigger value="oauth">OAuth</TabsTrigger>
         </TabsList>
 
         <TabsContent value="panel" className="mt-4">
@@ -443,6 +448,103 @@ export default function AdminSettingsPage() {
               <TestEmailButton />
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="oauth" className="mt-4">
+          <div className="flex flex-col gap-4">
+            {/* Discord */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Discord OAuth</CardTitle>
+                <CardDescription>
+                  Allow users to sign in with Discord. Create an app at{' '}
+                  <a href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer" className="underline">discord.com/developers</a>.
+                  Set redirect URI to <code className="text-xs bg-muted px-1 rounded">{'{'}your-panel-url{'}'}/authentication/oauth/discord/callback</code>.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="discord-enabled">Discord Login</Label>
+                  <select id="discord-enabled" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" value={settings['oauth.discord.enabled'] || 'false'} onChange={(e) => handleChange('oauth.discord.enabled', e.target.value)}>
+                    <option value="true">Enabled</option>
+                    <option value="false">Disabled</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex flex-col gap-2 flex-1">
+                    <Label htmlFor="discord-client-id">Client ID</Label>
+                    <Input id="discord-client-id" placeholder="1234567890" value={settings['oauth.discord.clientId'] || ''} onChange={(e) => handleChange('oauth.discord.clientId', e.target.value)} />
+                  </div>
+                  <div className="flex flex-col gap-2 flex-1">
+                    <Label htmlFor="discord-secret">Client Secret</Label>
+                    <Input id="discord-secret" type="password" placeholder="Enter client secret" value={settings['oauth.discord.secret'] || ''} onChange={(e) => handleChange('oauth.discord.secret', e.target.value)} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Google */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Google OAuth</CardTitle>
+                <CardDescription>
+                  Allow users to sign in with Google. Create credentials at{' '}
+                  <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="underline">console.cloud.google.com</a>.
+                  Set redirect URI to <code className="text-xs bg-muted px-1 rounded">{'{'}your-panel-url{'}'}/authentication/oauth/google/callback</code>.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="google-enabled">Google Login</Label>
+                  <select id="google-enabled" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" value={settings['oauth.google.enabled'] || 'false'} onChange={(e) => handleChange('oauth.google.enabled', e.target.value)}>
+                    <option value="true">Enabled</option>
+                    <option value="false">Disabled</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex flex-col gap-2 flex-1">
+                    <Label htmlFor="google-client-id">Client ID</Label>
+                    <Input id="google-client-id" placeholder="123-abc.apps.googleusercontent.com" value={settings['oauth.google.clientId'] || ''} onChange={(e) => handleChange('oauth.google.clientId', e.target.value)} />
+                  </div>
+                  <div className="flex flex-col gap-2 flex-1">
+                    <Label htmlFor="google-secret">Client Secret</Label>
+                    <Input id="google-secret" type="password" placeholder="Enter client secret" value={settings['oauth.google.secret'] || ''} onChange={(e) => handleChange('oauth.google.secret', e.target.value)} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* GitHub */}
+            <Card>
+              <CardHeader>
+                <CardTitle>GitHub OAuth</CardTitle>
+                <CardDescription>
+                  Allow users to sign in with GitHub. Create an OAuth app at{' '}
+                  <a href="https://github.com/settings/developers" target="_blank" rel="noopener noreferrer" className="underline">github.com/settings/developers</a>.
+                  Set callback URL to <code className="text-xs bg-muted px-1 rounded">{'{'}your-panel-url{'}'}/authentication/oauth/github/callback</code>.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-4">
+                <div className="flex flex-col gap-2">
+                  <Label htmlFor="github-enabled">GitHub Login</Label>
+                  <select id="github-enabled" className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm" value={settings['oauth.github.enabled'] || 'false'} onChange={(e) => handleChange('oauth.github.enabled', e.target.value)}>
+                    <option value="true">Enabled</option>
+                    <option value="false">Disabled</option>
+                  </select>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="flex flex-col gap-2 flex-1">
+                    <Label htmlFor="github-client-id">Client ID</Label>
+                    <Input id="github-client-id" placeholder="Ov23li..." value={settings['oauth.github.clientId'] || ''} onChange={(e) => handleChange('oauth.github.clientId', e.target.value)} />
+                  </div>
+                  <div className="flex flex-col gap-2 flex-1">
+                    <Label htmlFor="github-secret">Client Secret</Label>
+                    <Input id="github-secret" type="password" placeholder="Enter client secret" value={settings['oauth.github.secret'] || ''} onChange={(e) => handleChange('oauth.github.secret', e.target.value)} />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
 
         <TabsContent value="afk" className="mt-4">

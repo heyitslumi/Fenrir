@@ -42,6 +42,9 @@ export class SettingsController {
     if (settings['mail.pass']) {
       settings['mail.pass'] = '••••••••';
     }
+    for (const key of ['oauth.discord.secret', 'oauth.google.secret', 'oauth.github.secret']) {
+      if (settings[key]) settings[key] = '••••••••';
+    }
     return settings;
   }
 
@@ -65,6 +68,9 @@ export class SettingsController {
     if (payload['panel.apiKey']?.endsWith('...')) delete payload['panel.apiKey'];
     if (payload['openapi.key']?.endsWith('...')) delete payload['openapi.key'];
     if (payload['mail.pass'] === '••••••••' || payload['mail.pass'] === '********') delete payload['mail.pass'];
+    for (const key of ['oauth.discord.secret', 'oauth.google.secret', 'oauth.github.secret']) {
+      if (payload[key] === '••••••••') delete payload[key];
+    }
     await this.settingsService.setMany(payload);
     return { message: 'Settings updated' };
   }
