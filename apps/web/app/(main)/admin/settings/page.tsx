@@ -239,6 +239,18 @@ export default function AdminSettingsPage() {
                 </p>
               </div>
               <div className="flex flex-col gap-2">
+                <Label htmlFor="app-url">App (Backend) URL</Label>
+                <Input
+                  id="app-url"
+                  placeholder="https://api.example.com"
+                  value={settings["app.url"] || ""}
+                  onChange={(e) => handleChange("app.url", e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  The public URL of this backend API. Used as the base for OAuth callback URLs.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2">
                 <Label htmlFor="auth-background-blur">Background Blur Amount (px)</Label>
                 <Input
                   id="auth-background-blur"
@@ -442,9 +454,17 @@ export default function AdminSettingsPage() {
                 <CardDescription>
                   Allow users to sign in with Discord. Create an app at{' '}
                   <a href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer" className="underline">discord.com/developers</a>.
-                  Set redirect URI to <code className="text-xs bg-muted px-1 rounded">{'{'}your-panel-url{'}'}/authentication/oauth/discord/callback</code>.
+                  Add <strong>both</strong> redirect URIs below to your Discord app.
                 </CardDescription>
               </CardHeader>
+              <CardContent className="pb-0">
+                <div className="flex flex-col gap-1 rounded-md border border-dashed border-muted-foreground/30 bg-muted/30 p-3 text-xs font-mono">
+                  <span className="text-muted-foreground">Login callback:</span>
+                  <span>{(settings['app.url'] || 'https://your-backend-url')}/api/auth/oauth/discord/callback</span>
+                  <span className="text-muted-foreground mt-1">Link callback:</span>
+                  <span>{(settings['app.url'] || 'https://your-backend-url')}/api/auth/oauth/discord/link/callback</span>
+                </div>
+              </CardContent>
               <CardContent className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="discord-enabled">Discord Login</Label>
@@ -473,9 +493,17 @@ export default function AdminSettingsPage() {
                 <CardDescription>
                   Allow users to sign in with Google. Create credentials at{' '}
                   <a href="https://console.cloud.google.com/apis/credentials" target="_blank" rel="noopener noreferrer" className="underline">console.cloud.google.com</a>.
-                  Set redirect URI to <code className="text-xs bg-muted px-1 rounded">{'{'}your-panel-url{'}'}/authentication/oauth/google/callback</code>.
+                  Add <strong>both</strong> redirect URIs below.
                 </CardDescription>
               </CardHeader>
+              <CardContent className="pb-0">
+                <div className="flex flex-col gap-1 rounded-md border border-dashed border-muted-foreground/30 bg-muted/30 p-3 text-xs font-mono">
+                  <span className="text-muted-foreground">Login callback:</span>
+                  <span>{(settings['app.url'] || 'https://your-backend-url')}/api/auth/oauth/google/callback</span>
+                  <span className="text-muted-foreground mt-1">Link callback:</span>
+                  <span>{(settings['app.url'] || 'https://your-backend-url')}/api/auth/oauth/google/link/callback</span>
+                </div>
+              </CardContent>
               <CardContent className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="google-enabled">Google Login</Label>
@@ -504,9 +532,17 @@ export default function AdminSettingsPage() {
                 <CardDescription>
                   Allow users to sign in with GitHub. Create an OAuth app at{' '}
                   <a href="https://github.com/settings/developers" target="_blank" rel="noopener noreferrer" className="underline">github.com/settings/developers</a>.
-                  Set callback URL to <code className="text-xs bg-muted px-1 rounded">{'{'}your-panel-url{'}'}/authentication/oauth/github/callback</code>.
+                  Add <strong>both</strong> callback URLs below.
                 </CardDescription>
               </CardHeader>
+              <CardContent className="pb-0">
+                <div className="flex flex-col gap-1 rounded-md border border-dashed border-muted-foreground/30 bg-muted/30 p-3 text-xs font-mono">
+                  <span className="text-muted-foreground">Login callback:</span>
+                  <span>{(settings['app.url'] || 'https://your-backend-url')}/api/auth/oauth/github/callback</span>
+                  <span className="text-muted-foreground mt-1">Link callback:</span>
+                  <span>{(settings['app.url'] || 'https://your-backend-url')}/api/auth/oauth/github/link/callback</span>
+                </div>
+              </CardContent>
               <CardContent className="flex flex-col gap-4">
                 <div className="flex flex-col gap-2">
                   <Label htmlFor="github-enabled">GitHub Login</Label>

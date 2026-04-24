@@ -17,8 +17,12 @@ export class OAuthService {
     return (await this.settings.get('cors.origin')) || process.env.CORS_ORIGIN || 'http://localhost:3000';
   }
 
+  async getAppUrl(): Promise<string> {
+    return (await this.settings.get('app.url')) || process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3001}`;
+  }
+
   async getCallbackUrl(provider: 'discord' | 'google' | 'github'): Promise<string> {
-    const backendUrl = process.env.BACKEND_URL || `http://localhost:${process.env.PORT || 3001}`;
+    const backendUrl = await this.getAppUrl();
     return `${backendUrl}/api/auth/oauth/${provider}/callback`;
   }
 
