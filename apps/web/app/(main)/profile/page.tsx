@@ -10,6 +10,8 @@ import { Button } from '@workspace/ui/components/button';
 import { Input } from '@workspace/ui/components/input';
 import { Badge } from '@workspace/ui/components/badge';
 import { Separator } from '@workspace/ui/components/separator';
+import { Label } from '@workspace/ui/components/label';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@workspace/ui/components/select';
 import {
   CameraIcon,
   SaveIcon,
@@ -34,6 +36,9 @@ import {
   XIcon,
 } from 'lucide-react';
 import { startRegistration, startAuthentication } from '@simplewebauthn/browser';
+import { normalizePreset, type ThemePresetId } from '@/lib/themes';
+
+const USER_THEME_STORAGE_KEY = 'fenrir.userTheme';
 
 interface PasskeyItem {
   id: string;
@@ -99,10 +104,30 @@ export default function ProfilePage() {
   const [twoFaCode, setTwoFaCode] = useState('');
   const [twoFaLoading, setTwoFaLoading] = useState(false);
   const [twoFaMsg, setTwoFaMsg] = useState('');
+  const [themePreset, setThemePreset] = useState<ThemePresetId>('default');
+  const [customLightPrimary, setCustomLightPrimary] = useState('');
+  const [customDarkPrimary, setCustomDarkPrimary] = useState('');
+  const [customLightAccent, setCustomLightAccent] = useState('');
+  const [customDarkAccent, setCustomDarkAccent] = useState('');
 
   useEffect(() => {
     if (user?.name) setName(user.name);
   }, [user?.name]);
+
+  useEffect(() => {
+    const raw = window.localStorage.getItem(USER_THEME_STORAGE_KEY);
+    if (!raw) return;
+    try {
+      const parsed = JSON.parse(raw);
+      setThemePreset(normalizePreset(parsed.preset));
+      setCustomLightPrimary(parsed.customLightPrimary || '');
+      setCustomDarkPrimary(parsed.customDarkPrimary || '');
+      setCustomLightAccent(parsed.customLightAccent || '');
+      setCustomDarkAccent(parsed.customDarkAccent || '');
+    } catch {
+      // ignore malformed local storage
+    }
+  }, []);
 
   const loadPasskeys = useCallback(async () => {
     const token = getAccessToken();
@@ -242,6 +267,19 @@ export default function ProfilePage() {
   const rawAvatar = avatarPreview || user?.avatar;
   const avatarSrc = rawAvatar && !rawAvatar.startsWith('blob:') && !rawAvatar.startsWith('http') ? `${apiBase}${rawAvatar}` : rawAvatar;
   const initials = (user?.name || user?.email || 'U').charAt(0).toUpperCase();
+  const saveThemePreference = () => {
+    const payload = {
+      preset: themePreset,
+      customLightPrimary: customLightPrimary.trim(),
+      customDarkPrimary: customDarkPrimary.trim(),
+      customLightAccent: customLightAccent.trim(),
+      customDarkAccent: customDarkAccent.trim(),
+    };
+    window.localStorage.setItem(USER_THEME_STORAGE_KEY, JSON.stringify(payload));
+    window.dispatchEvent(new CustomEvent('fenrir-theme-change'));
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+  };
 
   return (
     <div className="flex flex-1 flex-col gap-6 p-6">
@@ -294,6 +332,41 @@ export default function ProfilePage() {
 
               <Button onClick={handleSaveProfile} disabled={saving} size="sm">
                 <SaveIcon className="size-4 mr-1" /> {saving ? 'Saving...' : 'Save Changes'}
+              </Button>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Theme</CardTitle>
+              <CardDescription>Choose your personal theme. This overrides the admin default only for your account/browser.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex flex-col gap-2">
+                <Label>Preset</Label>
+                <Select value={themePreset} onValueChange={(value) => setThemePreset(normalizePreset(value))}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a theme" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="default">Default</SelectItem>
+                    <SelectItem value="ocean">Ocean</SelectItem>
+                    <SelectItem value="forest">Forest</SelectItem>
+                    <SelectItem value="sunset">Sunset</SelectItem>
+                    <SelectItem value="custom">Custom</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              {themePreset === 'custom' && (
+                <div className="grid gap-3 md:grid-cols-2">
+                  <Input placeholder="Light primary (e.g. #4f46e5)" value={customLightPrimary} onChange={(e) => setCustomLightPrimary(e.target.value)} />
+                  <Input placeholder="Dark primary (e.g. oklch(...))" value={customDarkPrimary} onChange={(e) => setCustomDarkPrimary(e.target.value)} />
+                  <Input placeholder="Light accent (optional)" value={customLightAccent} onChange={(e) => setCustomLightAccent(e.target.value)} />
+                  <Input placeholder="Dark accent (optional)" value={customDarkAccent} onChange={(e) => setCustomDarkAccent(e.target.value)} />
+                </div>
+              )}
+              <Button onClick={saveThemePreference} className="w-full sm:w-auto">
+                Save theme
               </Button>
             </CardContent>
           </Card>

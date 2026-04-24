@@ -643,6 +643,11 @@ export interface BrandConfig {
   'panel.logoHeight'?: string;
   'auth.background'?: string;
   'auth.backgroundBlur'?: string;
+  'theme.defaultPreset'?: string;
+  'theme.custom.light.primary'?: string;
+  'theme.custom.dark.primary'?: string;
+  'theme.custom.light.accent'?: string;
+  'theme.custom.dark.accent'?: string;
 }
 
 export interface AdminPermission {

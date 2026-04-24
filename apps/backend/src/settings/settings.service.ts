@@ -59,6 +59,17 @@ export class SettingsService {
   }
 
   async getBrand() {
-    return this.getMany(['panel.name', 'panel.logo', 'panel.logoHeight', 'auth.background', 'auth.backgroundBlur']);
+    return this.getMany([
+      'panel.name',
+      'panel.logo',
+      'panel.logoHeight',
+      'auth.background',
+      'auth.backgroundBlur',
+      'theme.defaultPreset',
+      'theme.custom.light.primary',
+      'theme.custom.dark.primary',
+      'theme.custom.light.accent',
+      'theme.custom.dark.accent',
+    ]);
   }
 }
