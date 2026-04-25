@@ -5,6 +5,52 @@ export type ThemePalette = {
   dark: Record<string, string>;
 };
 
+export const THEME_PRESET_OPTIONS: Array<{ id: ThemePresetId; label: string }> = [
+  { id: 'default', label: 'Default' },
+  { id: 'ocean', label: 'Ocean' },
+  { id: 'forest', label: 'Forest' },
+  { id: 'sunset', label: 'Sunset' },
+  { id: 'custom', label: 'Custom' },
+];
+
+export const THEME_PICKER_DEFAULTS = {
+  lightPrimary: '#111827',
+  darkPrimary: '#f4f4f5',
+  lightAccent: '#f5f5f5',
+  darkAccent: '#27272a',
+  presets: {
+    default: {
+      lightPrimary: '#111827',
+      darkPrimary: '#f4f4f5',
+      lightAccent: '#f5f5f5',
+      darkAccent: '#27272a',
+    },
+    ocean: {
+      lightPrimary: '#2563eb',
+      darkPrimary: '#7dd3fc',
+      lightAccent: '#eff6ff',
+      darkAccent: '#1e3a5f',
+    },
+    forest: {
+      lightPrimary: '#2f855a',
+      darkPrimary: '#86efac',
+      lightAccent: '#ecfdf5',
+      darkAccent: '#1f3b2b',
+    },
+    sunset: {
+      lightPrimary: '#f97316',
+      darkPrimary: '#fdba74',
+      lightAccent: '#fff7ed',
+      darkAccent: '#4a2c1a',
+    },
+  } satisfies Record<Exclude<ThemePresetId, 'custom'>, {
+    lightPrimary: string;
+    darkPrimary: string;
+    lightAccent: string;
+    darkAccent: string;
+  }>,
+};
+
 export const THEME_PRESETS: Record<Exclude<ThemePresetId, 'custom'>, ThemePalette> = {
   default: {
     light: {

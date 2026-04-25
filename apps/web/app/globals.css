@@ -1,4 +1,4 @@
-@import "@workspace/ui/globals.css";
+@import "../../../packages/ui/src/styles/globals.css";
 
 /* App-level Tailwind entrypoint so shadcn CLI and local custom utilities can target web app sources. */
 @source "./**/*.{ts,tsx}";

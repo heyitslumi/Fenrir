@@ -16,6 +16,14 @@ import {
   useSidebar,
 } from "@workspace/ui/components/sidebar"
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@workspace/ui/components/dropdown-menu"
+import {
   LayoutDashboardIcon,
   ServerIcon,
   StoreIcon,
@@ -34,11 +42,14 @@ import {
   UsersIcon,
   KeyIcon,
   ChevronRightIcon,
+  MoonIcon,
+  SunIcon,
   type LucideIcon,
 } from "lucide-react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
 import Image from "next/image"
+import { useTheme } from "next-themes"
 import AuthenticationContext from "@/app/_context/authentication"
 import { api, type BrandConfig } from "@/lib/api"
 import { getAccessToken } from "@/lib/auth"
@@ -237,23 +248,56 @@ function getAvatarUrl(avatar: string | null | undefined) {
 
 function CollapsedAvatar() {
   const { user, isLoading } = React.use(AuthenticationContext)
+  const { logout } = React.use(AuthenticationContext)
+  const { resolvedTheme, setTheme } = useTheme()
   const src = getAvatarUrl(user?.avatar)
+  const isDark = resolvedTheme === "dark"
 
   return (
     <Tooltip>
       <TooltipTrigger asChild>
-        <Link
-          href="/profile"
-          className="flex size-8 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-xs font-semibold text-white shadow-sm transition-opacity hover:opacity-80"
-        >
-          {src ? (
-            <img src={src} alt="Avatar" className="size-full object-cover" />
-          ) : isLoading ? (
-            "·"
-          ) : (
-            getInitials(user?.name || user?.email)
-          )}
-        </Link>
+        <div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="flex size-8 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-xs font-semibold text-white shadow-sm transition-opacity hover:opacity-80"
+              >
+                {src ? (
+                  <img src={src} alt="Avatar" className="size-full object-cover" />
+                ) : isLoading ? (
+                  "·"
+                ) : (
+                  getInitials(user?.name || user?.email)
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent side="right" align="center" className="w-56">
+              <DropdownMenuLabel>{user?.name || "Account"}</DropdownMenuLabel>
+              <DropdownMenuItem asChild>
+                <Link href="/profile">
+                  <UserIcon className="size-4" />
+                  <span>Profile</span>
+                </Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("light")}>
+                <SunIcon className="size-4" />
+                <span>Light mode</span>
+                {!isDark ? <span className="ml-auto text-xs text-muted-foreground">Active</span> : null}
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setTheme("dark")}>
+                <MoonIcon className="size-4" />
+                <span>Dark mode</span>
+                {isDark ? <span className="ml-auto text-xs text-muted-foreground">Active</span> : null}
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onClick={() => logout()}>
+                <LogOutIcon className="size-4" />
+                <span>Sign out</span>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </TooltipTrigger>
       <TooltipContent side="right">{user?.name || "Profile"}</TooltipContent>
     </Tooltip>
@@ -261,36 +305,68 @@ function CollapsedAvatar() {
 }
 
 function UserCard() {
-  const { user, isLoading } = React.use(AuthenticationContext)
+  const { user, isLoading, logout } = React.use(AuthenticationContext)
+  const { resolvedTheme, setTheme } = useTheme()
+  const isDark = resolvedTheme === "dark"
 
   return (
-    <Link
-      href="/profile"
-      className="group/user flex items-center gap-3 rounded-xl border border-border/60 bg-muted/30 px-3 py-2.5 transition-colors hover:bg-muted/60"
-    >
-      <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-sm font-semibold text-white shadow-sm">
-        {getAvatarUrl(user?.avatar) ? (
-          <img
-            src={getAvatarUrl(user?.avatar)!}
-            alt="Avatar"
-            className="size-full object-cover"
-          />
-        ) : isLoading ? (
-          "·"
-        ) : (
-          getInitials(user?.name || user?.email)
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <p className="truncate text-sm leading-tight font-medium">
-          {user?.name || "User"}
-        </p>
-        <p className="truncate text-[11px] leading-tight text-muted-foreground">
-          Default plan
-        </p>
-      </div>
-      <ChevronRightIcon className="size-3.5 text-muted-foreground/60 transition-transform group-hover/user:translate-x-0.5" />
-    </Link>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          className="group/user flex w-full items-center gap-3 rounded-xl border border-border/60 bg-muted/30 px-3 py-2.5 text-left transition-colors hover:bg-muted/60"
+        >
+          <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-purple-500 to-pink-500 text-sm font-semibold text-white shadow-sm">
+            {getAvatarUrl(user?.avatar) ? (
+              <img
+                src={getAvatarUrl(user?.avatar)!}
+                alt="Avatar"
+                className="size-full object-cover"
+              />
+            ) : isLoading ? (
+              "·"
+            ) : (
+              getInitials(user?.name || user?.email)
+            )}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm leading-tight font-medium">
+              {user?.name || "User"}
+            </p>
+            <p className="truncate text-[11px] leading-tight text-muted-foreground">
+              Default plan
+            </p>
+          </div>
+          <ChevronRightIcon className="size-3.5 text-muted-foreground/60 transition-transform group-hover/user:translate-x-0.5" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" sideOffset={8} className="w-64">
+        <DropdownMenuLabel>{user?.name || "Account"}</DropdownMenuLabel>
+        <DropdownMenuItem asChild>
+          <Link href="/profile">
+            <UserIcon className="size-4" />
+            <span>Profile</span>
+          </Link>
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel>Theme</DropdownMenuLabel>
+        <DropdownMenuItem onClick={() => setTheme("light")}>
+          <SunIcon className="size-4" />
+          <span>Light mode</span>
+          {!isDark ? <span className="ml-auto text-xs text-muted-foreground">Active</span> : null}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setTheme("dark")}>
+          <MoonIcon className="size-4" />
+          <span>Dark mode</span>
+          {isDark ? <span className="ml-auto text-xs text-muted-foreground">Active</span> : null}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant="destructive" onClick={() => logout()}>
+          <LogOutIcon className="size-4" />
+          <span>Sign out</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   )
 }
 
@@ -378,20 +454,22 @@ function FooterBar() {
       {/* Expanded footer */}
       <div className="group-data-[collapsible=icon]:hidden">
         <Separator className="mb-3" />
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <CoinsIcon className="size-3.5" />
             <span className="font-medium">
               {coins !== null ? coins.toFixed(2) : "—"} coins
             </span>
           </div>
-          <button
-            onClick={() => logout()}
-            className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <LogOutIcon className="size-3.5" />
-            <span>Sign out</span>
-          </button>
+          <div className="flex justify-end">
+            <button
+              onClick={() => logout()}
+              className="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <LogOutIcon className="size-3.5" />
+              <span>Sign out</span>
+            </button>
+          </div>
         </div>
       </div>
       {/* Collapsed footer */}

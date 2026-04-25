@@ -10,8 +10,7 @@ import { Button } from '@workspace/ui/components/button';
 import { Input } from '@workspace/ui/components/input';
 import { Badge } from '@workspace/ui/components/badge';
 import { Separator } from '@workspace/ui/components/separator';
-import { Label } from '@workspace/ui/components/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@workspace/ui/components/select';
+import { ThemeCustomizer } from '@/components/theme-customizer';
 import {
   CameraIcon,
   SaveIcon,
@@ -341,33 +340,24 @@ export default function ProfilePage() {
               <CardTitle>Theme</CardTitle>
               <CardDescription>Choose your personal theme. This overrides the admin default only for your account/browser.</CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex flex-col gap-2">
-                <Label>Preset</Label>
-                <Select value={themePreset} onValueChange={(value) => setThemePreset(normalizePreset(value))}>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a theme" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="default">Default</SelectItem>
-                    <SelectItem value="ocean">Ocean</SelectItem>
-                    <SelectItem value="forest">Forest</SelectItem>
-                    <SelectItem value="sunset">Sunset</SelectItem>
-                    <SelectItem value="custom">Custom</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              {themePreset === 'custom' && (
-                <div className="grid gap-3 md:grid-cols-2">
-                  <Input placeholder="Light primary (e.g. #4f46e5)" value={customLightPrimary} onChange={(e) => setCustomLightPrimary(e.target.value)} />
-                  <Input placeholder="Dark primary (e.g. oklch(...))" value={customDarkPrimary} onChange={(e) => setCustomDarkPrimary(e.target.value)} />
-                  <Input placeholder="Light accent (optional)" value={customLightAccent} onChange={(e) => setCustomLightAccent(e.target.value)} />
-                  <Input placeholder="Dark accent (optional)" value={customDarkAccent} onChange={(e) => setCustomDarkAccent(e.target.value)} />
-                </div>
-              )}
-              <Button onClick={saveThemePreference} className="w-full sm:w-auto">
+            <CardContent className="space-y-5">
+              <ThemeCustomizer
+                preset={themePreset}
+                customLightPrimary={customLightPrimary}
+                customDarkPrimary={customDarkPrimary}
+                customLightAccent={customLightAccent}
+                customDarkAccent={customDarkAccent}
+                onPresetChange={setThemePreset}
+                onCustomLightPrimaryChange={setCustomLightPrimary}
+                onCustomDarkPrimaryChange={setCustomDarkPrimary}
+                onCustomLightAccentChange={setCustomLightAccent}
+                onCustomDarkAccentChange={setCustomDarkAccent}
+              />
+              <div className="border-t border-border pt-4">
+                <Button onClick={saveThemePreference} className="w-full sm:w-auto">
                 Save theme
-              </Button>
+                </Button>
+              </div>
             </CardContent>
           </Card>
 

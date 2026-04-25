@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
+import { useTheme } from 'next-themes';
 import { api, type EggConfig } from '@/lib/api';
 import Editor from '@monaco-editor/react';
 import { Terminal } from '@xterm/xterm';
@@ -57,6 +58,8 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@workspace/ui/components/dropdown-menu';
 import {
@@ -80,6 +83,23 @@ interface FileEntry {
   mime: string;
   created: string;
   modified: string;
+}
+
+function normalizeServerFsPath(raw?: string | null): string {
+  if (!raw?.trim()) return '/';
+  let path = raw.trim();
+  if (!path.startsWith('/')) path = `/${path}`;
+  if (path.length > 1 && path.endsWith('/')) path = path.slice(0, -1);
+  return path || '/';
+}
+
+function isTextLikeFile(file: FileEntry): boolean {
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  return (
+    ['txt', 'json', 'yml', 'yaml', 'toml', 'cfg', 'conf', 'ini', 'properties', 'log', 'xml', 'html', 'css', 'js', 'ts', 'java', 'py', 'sh', 'bat', 'md', 'env', 'csv'].includes(ext) ||
+    file.mime?.startsWith('text/') ||
+    file.size < 512000
+  );
 }
 
 function Sparkline({ data, max, color = 'currentColor', className = '' }: { data: number[]; max?: number; color?: string; className?: string }) {
@@ -109,10 +129,14 @@ export default function ServerDetailPage() {
   const params = useParams();
   const router = useRouter();
   const uuid = params.uuid as string;
+  const { resolvedTheme } = useTheme();
 
   const searchParams = useSearchParams();
   const validTabs: Tab[] = ['console', 'files', 'backups', 'startup', 'resources', 'settings', 'activity'];
-  const initialTab = validTabs.includes(searchParams.get('tab') as Tab) ? (searchParams.get('tab') as Tab) : 'console';
+  const searchTab = searchParams.get('tab') as Tab | null;
+  const initialTab = validTabs.includes(searchTab as Tab) ? (searchTab as Tab) : 'console';
+  const filesPathParam = normalizeServerFsPath(searchParams.get('path'));
+  const editingFileParam = searchParams.get('file');
   const [tab, setTabState] = useState<Tab>(initialTab);
   const setTab = useCallback((t: Tab) => {
     setTabState(t);
@@ -146,16 +170,24 @@ export default function ServerDetailPage() {
   const [searchQuery, setSearchQuery] = useState('');
 
   // Files state
-  const [currentPath, setCurrentPath] = useState('/');
+  const [currentPath, setCurrentPath] = useState(filesPathParam);
   const [files, setFiles] = useState<FileEntry[]>([]);
   const [filesLoading, setFilesLoading] = useState(false);
   const [editingFile, setEditingFile] = useState<string | null>(null);
   const [fileContent, setFileContent] = useState('');
   const [fileSaving, setFileSaving] = useState(false);
+  const [newFileName, setNewFileName] = useState('');
   const [newFolderName, setNewFolderName] = useState('');
   const [showNewFolder, setShowNewFolder] = useState(false);
+  const [showNewFile, setShowNewFile] = useState(false);
+  const [showUploadDialog, setShowUploadDialog] = useState(false);
+  const [uploadDialogFile, setUploadDialogFile] = useState<File | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<Set<string>>(new Set());
   const [uploading, setUploading] = useState(false);
+  const [originalFileContent, setOriginalFileContent] = useState('');
+  const [breadcrumbEntries, setBreadcrumbEntries] = useState<Record<string, FileEntry[]>>({});
+  const [breadcrumbLoading, setBreadcrumbLoading] = useState<string | null>(null);
+  const [breadcrumbSearch, setBreadcrumbSearch] = useState<Record<string, string>>({});
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const saveFileRef = useRef<() => void>(() => {});
 
@@ -193,6 +225,49 @@ export default function ServerDetailPage() {
   const [matchedEgg, setMatchedEgg] = useState<EggConfig | null>(null);
 
   const token = getAccessToken();
+
+  const updateFilesLocation = useCallback((nextPath: string, nextFile?: string | null) => {
+    const normalizedPath = normalizeServerFsPath(nextPath);
+    setCurrentPath(normalizedPath);
+    if (!nextFile) {
+      setEditingFile(null);
+      setFileContent('');
+      setOriginalFileContent('');
+    }
+    const url = new URL(window.location.href);
+    url.searchParams.set('tab', 'files');
+    url.searchParams.set('path', normalizedPath);
+    if (nextFile) {
+      url.searchParams.set('file', nextFile);
+    } else {
+      url.searchParams.delete('file');
+    }
+    window.history.pushState({}, '', url.toString());
+  }, []);
+
+  const loadBreadcrumbEntries = useCallback(async (dir: string) => {
+    if (!token) return;
+    if (breadcrumbEntries[dir]) return;
+    setBreadcrumbLoading(dir);
+    try {
+      const res = await api.servers.files.list(token, uuid, dir);
+      const list = res?.entries?.data ?? res?.data ?? res?.files ?? res ?? [];
+      setBreadcrumbEntries((prev) => ({ ...prev, [dir]: Array.isArray(list) ? list : [] }));
+    } catch {
+      setBreadcrumbEntries((prev) => ({ ...prev, [dir]: [] }));
+    } finally {
+      setBreadcrumbLoading((current) => (current === dir ? null : current));
+    }
+  }, [breadcrumbEntries, token, uuid]);
+
+  useEffect(() => {
+    const nextTab = validTabs.includes(searchTab as Tab) ? (searchTab as Tab) : 'console';
+    setTabState(nextTab);
+  }, [searchTab]);
+
+  useEffect(() => {
+    setCurrentPath(filesPathParam);
+  }, [filesPathParam]);
 
   // Load server details
   const loadServer = useCallback(async () => {
@@ -457,7 +532,9 @@ export default function ServerDetailPage() {
     if (!token) return;
     try {
       const res = await api.servers.files.contents(token, uuid, filePath);
-      setFileContent(typeof res === 'string' ? res : res?.content ?? JSON.stringify(res, null, 2));
+      const content = typeof res === 'string' ? res : res?.content ?? JSON.stringify(res, null, 2);
+      setFileContent(content);
+      setOriginalFileContent(content);
       setEditingFile(filePath);
     } catch (err: any) {
       setError(err.message);
@@ -469,6 +546,7 @@ export default function ServerDetailPage() {
     setFileSaving(true);
     try {
       await api.servers.files.write(token, uuid, editingFile, fileContent);
+      setOriginalFileContent(fileContent);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -513,12 +591,40 @@ export default function ServerDetailPage() {
     }
   };
 
+  const deleteFilesByName = async (names: string[]) => {
+    if (!token || names.length === 0) return;
+    if (!confirm(`Delete ${names.length} item(s)?`)) return;
+    try {
+      await api.servers.files.deleteFiles(token, uuid, currentPath, names);
+      setSelectedFiles((prev) => {
+        const next = new Set(prev);
+        names.forEach((name) => next.delete(name));
+        return next;
+      });
+      loadFiles(currentPath);
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
   const createFolder = async () => {
     if (!token || !newFolderName.trim()) return;
     try {
       await api.servers.files.createDirectory(token, uuid, currentPath, newFolderName.trim());
       setNewFolderName('');
       setShowNewFolder(false);
+      loadFiles(currentPath);
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
+  const createFile = async () => {
+    if (!token || !newFileName.trim()) return;
+    try {
+      await api.servers.files.write(token, uuid, currentPath === '/' ? `/${newFileName.trim()}` : `${currentPath}/${newFileName.trim()}`, '');
+      setNewFileName('');
+      setShowNewFile(false);
       loadFiles(currentPath);
     } catch (err: any) {
       setError(err.message);
@@ -537,7 +643,20 @@ export default function ServerDetailPage() {
 
   useEffect(() => {
     if (tab === 'files') loadFiles(currentPath);
-  }, [tab]);
+  }, [tab, currentPath, loadFiles]);
+
+  useEffect(() => {
+    if (tab !== 'files') return;
+    if (!editingFileParam) {
+      setEditingFile(null);
+      setFileContent('');
+      setOriginalFileContent('');
+      return;
+    }
+    if (editingFileParam !== editingFile) {
+      void openFile(editingFileParam);
+    }
+  }, [tab, editingFileParam]);
 
   // ── Backups ──
 
@@ -790,6 +909,20 @@ export default function ServerDetailPage() {
     serverState === 'install_failed' ? 'Install Failed' : 'Offline';
 
   const pathParts = currentPath.split('/').filter(Boolean);
+  const displayedFiles = files.sort((a, b) => {
+    if (a.directory && !b.directory) return -1;
+    if (!a.directory && b.directory) return 1;
+    return a.name.localeCompare(b.name);
+  });
+  const selectedCount = selectedFiles.size;
+  const directoryCount = files.filter((file) => file.directory).length;
+  const fileCount = files.filter((file) => !file.directory).length;
+  const isEditorDirty = editingFile ? fileContent !== originalFileContent : false;
+
+  const closeEditor = () => {
+    if (isEditorDirty && !confirm('Discard unsaved changes?')) return;
+    updateFilesLocation(currentPath, null);
+  };
 
   if (loading) {
     return (
@@ -1027,98 +1160,164 @@ export default function ServerDetailPage() {
 
       {/* ═══ FILES TAB ═══ */}
       {tab === 'files' && !editingFile && (
-        <Card className="flex-1">
-          <CardContent className="p-4">
-            {/* Breadcrumbs & actions */}
-            <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
-              <div className="flex items-center gap-1 text-sm flex-wrap">
-                <button onClick={() => loadFiles('/')} className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition">
-                  <HomeIcon className="size-4" /><span>/</span>
-                </button>
-                {pathParts.map((part, i) => (
-                  <span key={i} className="flex items-center gap-1">
-                    <ChevronRightIcon className="size-3 text-muted-foreground" />
-                    <button
-                      onClick={() => loadFiles('/' + pathParts.slice(0, i + 1).join('/'))}
-                      className="text-muted-foreground hover:text-foreground transition"
-                    >
-                      {part}
-                    </button>
-                  </span>
-                ))}
-              </div>
-              <div className="flex gap-2">
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  multiple
-                  className="hidden"
-                  onChange={(e) => e.target.files && uploadFiles(e.target.files)}
-                />
-                <Button size="sm" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
-                  <UploadIcon className="size-4 mr-1" /> {uploading ? 'Uploading...' : 'Upload'}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setShowNewFolder(true)}>
-                  <PlusIcon className="size-4 mr-1" /> New Folder
-                </Button>
-                {selectedFiles.size > 0 && (
-                  <Button size="sm" variant="destructive" onClick={deleteSelectedFiles}>
-                    <TrashIcon className="size-4 mr-1" /> Delete ({selectedFiles.size})
-                  </Button>
-                )}
-                <Button size="sm" variant="outline" onClick={() => loadFiles(currentPath)}>
-                  <RefreshCcwIcon className="size-4" />
-                </Button>
-              </div>
+        <div className="space-y-4">
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap items-center gap-1.5 text-sm">
+                  <button
+                    onClick={() => updateFilesLocation('/')}
+                    className="inline-flex size-7 items-center justify-center rounded-md text-muted-foreground transition hover:bg-muted/50 hover:text-foreground"
+                  >
+                    <HomeIcon className="size-3.5" />
+                  </button>
+              {pathParts.map((part, i) => (
+                <span key={i} className="flex items-center gap-1.5">
+                  <ChevronRightIcon className="size-3 text-muted-foreground/60" />
+                  <DropdownMenu onOpenChange={(open) => {
+                    if (open) {
+                      void loadBreadcrumbEntries('/' + pathParts.slice(0, i + 1).join('/'));
+                    }
+                  }}>
+                    <DropdownMenuTrigger asChild>
+                      <button
+                        className="inline-flex items-center gap-1 rounded-md px-1.5 py-1 text-foreground/90 transition hover:bg-muted/40 hover:text-foreground"
+                      >
+                        <span className="max-w-40 truncate">{part}</span>
+                        <ChevronRightIcon className="size-3 rotate-90 text-muted-foreground/60" />
+                      </button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="start" className="w-72">
+                      <DropdownMenuLabel className="font-mono text-[11px]">
+                        {'/' + pathParts.slice(0, i + 1).join('/')}
+                      </DropdownMenuLabel>
+                      <div className="px-1 py-1.5">
+                        <div className="relative">
+                          <SearchIcon className="pointer-events-none absolute top-1/2 left-3 size-3.5 -translate-y-1/2 text-muted-foreground" />
+                          <Input
+                            value={breadcrumbSearch['/' + pathParts.slice(0, i + 1).join('/')] || ''}
+                            onChange={(e) => setBreadcrumbSearch((prev) => ({
+                              ...prev,
+                              ['/' + pathParts.slice(0, i + 1).join('/')]: e.target.value,
+                            }))}
+                            placeholder="Search files..."
+                            className="h-8 pl-9 text-xs"
+                          />
+                        </div>
+                      </div>
+                      <DropdownMenuSeparator />
+                      <div className="max-h-72 overflow-y-auto">
+                        {(breadcrumbLoading === '/' + pathParts.slice(0, i + 1).join('/') ? [] : (breadcrumbEntries['/' + pathParts.slice(0, i + 1).join('/')] || []))
+                          .filter((entry) => entry.name.toLowerCase().includes((breadcrumbSearch['/' + pathParts.slice(0, i + 1).join('/')] || '').toLowerCase()))
+                          .sort((a, b) => {
+                            if (a.directory && !b.directory) return -1;
+                            if (!a.directory && b.directory) return 1;
+                            return a.name.localeCompare(b.name);
+                          })
+                          .map((entry) => {
+                            const dirPath = '/' + pathParts.slice(0, i + 1).join('/');
+                            const fullPath = dirPath === '/' ? `/${entry.name}` : `${dirPath}/${entry.name}`;
+                            return (
+                              <DropdownMenuItem
+                                key={entry.name}
+                                onClick={() => {
+                                  if (entry.directory) updateFilesLocation(fullPath);
+                                  else if (isTextLikeFile(entry)) updateFilesLocation(dirPath, fullPath);
+                                  else downloadFile(fullPath);
+                                }}
+                              >
+                                {entry.directory ? (
+                                  <FolderIcon className="size-4 mr-2 text-primary" />
+                                ) : (
+                                  <FileTextIcon className="size-4 mr-2 text-muted-foreground" />
+                                )}
+                                <span className="truncate">{entry.name}</span>
+                              </DropdownMenuItem>
+                            );
+                          })}
+                        {breadcrumbLoading === '/' + pathParts.slice(0, i + 1).join('/') ? (
+                          <div className="px-3 py-2 text-xs text-muted-foreground">Loading...</div>
+                        ) : null}
+                        {breadcrumbLoading !== '/' + pathParts.slice(0, i + 1).join('/') &&
+                        ((breadcrumbEntries['/' + pathParts.slice(0, i + 1).join('/')] || []).filter((entry) => entry.name.toLowerCase().includes((breadcrumbSearch['/' + pathParts.slice(0, i + 1).join('/')] || '').toLowerCase())).length === 0) ? (
+                          <div className="px-3 py-2 text-xs text-muted-foreground">No files found.</div>
+                        ) : null}
+                      </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </span>
+              ))}
             </div>
-
-            {showNewFolder && (
-              <div className="flex gap-2 mb-4">
-                <Input
-                  placeholder="Folder name..."
-                  value={newFolderName}
-                  onChange={(e) => setNewFolderName(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && createFolder()}
-                  autoFocus
-                />
-                <Button size="sm" onClick={createFolder}>Create</Button>
-                <Button size="sm" variant="ghost" onClick={() => { setShowNewFolder(false); setNewFolderName(''); }}>
-                  <XIcon className="size-4" />
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => setShowNewFile(true)}>
+                <PlusIcon className="size-4 mr-1" /> Create File
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setShowNewFolder(true)}>
+                <PlusIcon className="size-4 mr-1" /> Create Directory
+              </Button>
+              <Button size="sm" variant="outline" onClick={() => setShowUploadDialog(true)}>
+                <UploadIcon className="size-4 mr-1" /> Upload
+              </Button>
+              {selectedCount > 0 ? (
+                <Button size="sm" variant="destructive" onClick={deleteSelectedFiles}>
+                  <TrashIcon className="size-4 mr-1" /> Delete
                 </Button>
+              ) : null}
+            </div>
+            {error ? (
+              <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {error}
               </div>
-            )}
+            ) : null}
+          </div>
 
+          <div className="relative rounded-md border bg-background">
             {filesLoading ? (
-              <div className="space-y-2">
-                {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+              <div className="space-y-2 p-4">
+                {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-12 w-full" />)}
               </div>
             ) : (
-              <div className="rounded-lg border divide-y">
+              <div className="overflow-hidden">
+                <div className="grid grid-cols-[36px_minmax(0,1.6fr)_120px_160px_44px] items-center border-b px-4 py-2 text-[11px] text-muted-foreground">
+                  <span />
+                  <span>Name</span>
+                  <span className="text-right">Size</span>
+                  <span className="hidden md:block text-right">Modified</span>
+                  <span />
+                </div>
                 {currentPath !== '/' && (
                   <button
                     onClick={() => {
                       const parent = '/' + pathParts.slice(0, -1).join('/');
-                      loadFiles(parent || '/');
+                      updateFilesLocation(parent || '/');
                     }}
-                    className="flex items-center gap-3 w-full p-3 text-sm hover:bg-muted/50 transition"
+                    className="grid w-full grid-cols-[36px_minmax(0,1.6fr)_120px_160px_44px] items-center border-b px-4 py-3 text-left text-sm transition hover:bg-muted/40"
                   >
-                    <FolderIcon className="size-4 text-blue-400" />
-                    <span className="text-muted-foreground">..</span>
+                    <span />
+                    <span className="flex items-center gap-3 min-w-0">
+                      <FolderIcon className="size-4 shrink-0 text-blue-400" />
+                      <span className="truncate text-muted-foreground">..</span>
+                    </span>
+                    <span />
+                    <span />
+                    <span />
                   </button>
                 )}
-                {files.length === 0 && (
-                  <div className="p-8 text-center text-sm text-muted-foreground">Empty directory</div>
-                )}
-                {files
-                  .sort((a, b) => {
-                    if (a.directory && !b.directory) return -1;
-                    if (!a.directory && b.directory) return 1;
-                    return a.name.localeCompare(b.name);
-                  })
-                  .map((file) => {
+                {displayedFiles.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center">
+                    <FolderIcon className="size-8 text-muted-foreground/40" />
+                    <p className="text-sm font-medium">
+                      {files.length === 0 ? 'This folder is empty' : 'No matches in this folder'}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {files.length === 0 ? 'Upload files or create a folder to get started.' : 'Try a different search term.'}
+                    </p>
+                  </div>
+                ) : (
+                  displayedFiles.map((file) => {
                     const fullPath = currentPath === '/' ? `/${file.name}` : `${currentPath}/${file.name}`;
+                    const isTextLike = isTextLikeFile(file);
+
                     return (
-                      <div key={file.name} className="flex items-center gap-3 p-3 text-sm hover:bg-muted/50 transition group">
+                      <div key={file.name} className="grid grid-cols-[36px_minmax(0,1.6fr)_120px_160px_44px] items-center border-b px-4 py-3 text-sm transition hover:bg-muted/30">
                         <input
                           type="checkbox"
                           checked={selectedFiles.has(file.name)}
@@ -1129,70 +1328,173 @@ export default function ServerDetailPage() {
                           }}
                           className="rounded border-muted-foreground/30"
                         />
-                        {file.directory ? (
-                          <button onClick={() => loadFiles(fullPath)} className="flex items-center gap-2 flex-1 min-w-0">
-                            <FolderIcon className="size-4 text-blue-400 shrink-0" />
-                            <span className="truncate font-medium">{file.name}</span>
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              const textExts = ['txt', 'json', 'yml', 'yaml', 'toml', 'cfg', 'conf', 'ini', 'properties', 'log', 'xml', 'html', 'css', 'js', 'ts', 'java', 'py', 'sh', 'bat', 'md', 'env', 'csv'];
-                              const ext = file.name.split('.').pop()?.toLowerCase() || '';
-                              if (textExts.includes(ext) || file.mime?.startsWith('text/') || file.size < 512000) {
-                                openFile(fullPath);
-                              } else {
-                                downloadFile(fullPath);
-                              }
-                            }}
-                            className="flex items-center gap-2 flex-1 min-w-0"
-                          >
-                            <FileTextIcon className="size-4 text-muted-foreground shrink-0" />
-                            <span className="truncate">{file.name}</span>
-                          </button>
-                        )}
-                        <span className="text-xs text-muted-foreground shrink-0">{file.directory ? '' : formatBytes(file.size)}</span>
-                        <span className="text-xs text-muted-foreground shrink-0 hidden md:block">
-                          {file.modified ? new Date(file.modified).toLocaleDateString() : ''}
+                        <button
+                          onClick={() => file.directory ? updateFilesLocation(fullPath) : (isTextLike ? updateFilesLocation(currentPath, fullPath) : downloadFile(fullPath))}
+                          className="flex min-w-0 items-center gap-3 text-left"
+                        >
+                          {file.directory ? (
+                            <FolderIcon className="size-4 shrink-0 text-primary" />
+                          ) : (
+                            <FileTextIcon className="size-4 shrink-0 text-muted-foreground" />
+                          )}
+                          <div className="min-w-0">
+                            <div className="truncate font-medium">{file.name}</div>
+                          </div>
+                        </button>
+                        <span className="text-right text-xs text-muted-foreground">
+                          {file.directory ? '—' : formatBytes(file.size)}
                         </span>
-                        {!file.directory && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={() => downloadFile(fullPath)}
-                          >
-                            <DownloadIcon className="size-3.5" />
-                          </Button>
-                        )}
+                        <span className="hidden text-right text-xs text-muted-foreground md:block">
+                          {file.modified ? new Date(file.modified).toLocaleDateString() : '—'}
+                        </span>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="ghost" size="sm" className="ml-auto size-8 p-0">
+                              <MoreHorizontalIcon className="size-4" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {file.directory ? (
+                              <DropdownMenuItem onClick={() => updateFilesLocation(fullPath)}>
+                                <FolderIcon className="size-4 mr-2" /> Open
+                              </DropdownMenuItem>
+                            ) : (
+                              <>
+                                {isTextLike ? (
+                                  <DropdownMenuItem onClick={() => updateFilesLocation(currentPath, fullPath)}>
+                                    <PencilIcon className="size-4 mr-2" /> Edit
+                                  </DropdownMenuItem>
+                                ) : null}
+                                <DropdownMenuItem onClick={() => downloadFile(fullPath)}>
+                                  <DownloadIcon className="size-4 mr-2" /> Download
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem
+                              onClick={() => deleteFilesByName([file.name])}
+                              className="text-destructive focus:text-destructive"
+                            >
+                              <TrashIcon className="size-4 mr-2" /> Delete
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
                       </div>
                     );
-                  })}
+                  })
+                )}
               </div>
             )}
-          </CardContent>
-        </Card>
+          </div>
+
+          <Dialog open={showNewFile} onOpenChange={setShowNewFile}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create File</DialogTitle>
+                <DialogDescription>Create a new empty file in {currentPath}.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Input
+                  placeholder="notes.txt"
+                  value={newFileName}
+                  onChange={(e) => setNewFileName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && createFile()}
+                  autoFocus
+                />
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => { setShowNewFile(false); setNewFileName(''); }}>Cancel</Button>
+                  <Button onClick={createFile}>Create</Button>
+                </DialogFooter>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={showNewFolder} onOpenChange={setShowNewFolder}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Create Directory</DialogTitle>
+                <DialogDescription>Create a new directory in {currentPath}.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Input
+                  placeholder="new-folder"
+                  value={newFolderName}
+                  onChange={(e) => setNewFolderName(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && createFolder()}
+                  autoFocus
+                />
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => { setShowNewFolder(false); setNewFolderName(''); }}>Cancel</Button>
+                  <Button onClick={createFolder}>Create</Button>
+                </DialogFooter>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          <Dialog open={showUploadDialog} onOpenChange={setShowUploadDialog}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Upload File</DialogTitle>
+                <DialogDescription>Upload a file to {currentPath}.</DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4">
+                <Input
+                  type="file"
+                  onChange={(e) => setUploadDialogFile(e.target.files?.[0] || null)}
+                />
+                <DialogFooter>
+                  <Button variant="outline" onClick={() => { setShowUploadDialog(false); setUploadDialogFile(null); }}>Cancel</Button>
+                  <Button
+                    disabled={!uploadDialogFile || uploading}
+                    onClick={async () => {
+                      if (!uploadDialogFile) return;
+                      const dt = new DataTransfer();
+                      dt.items.add(uploadDialogFile);
+                      await uploadFiles(dt.files);
+                      setUploadDialogFile(null);
+                      setShowUploadDialog(false);
+                    }}
+                  >
+                    {uploading ? 'Uploading...' : 'Upload'}
+                  </Button>
+                </DialogFooter>
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       )}
 
       {/* ═══ FILE EDITOR ═══ */}
       {tab === 'files' && editingFile && (
-        <Card className="flex-1 flex flex-col min-h-0">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-sm font-mono">{editingFile}</CardTitle>
-              <div className="flex gap-2">
-                <Button size="sm" onClick={saveFile} disabled={fileSaving}>
-                  <SaveIcon className="size-4 mr-1" /> {fileSaving ? 'Saving...' : 'Save'}
-                </Button>
-                <Button size="sm" variant="ghost" onClick={() => setEditingFile(null)}>
-                  <XIcon className="size-4" />
-                </Button>
-              </div>
+        <div className="space-y-3">
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2 text-sm">
+              <button
+                onClick={closeEditor}
+                className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-muted-foreground transition hover:bg-muted hover:text-foreground"
+              >
+                <ArrowLeftIcon className="size-4" />
+                Files
+              </button>
+              <ChevronRightIcon className="size-3 text-muted-foreground" />
+              <span className="truncate font-mono text-muted-foreground">{editingFile}</span>
             </div>
-          </CardHeader>
-          <CardContent className="flex-1 p-0 min-h-0 overflow-hidden rounded-b-lg">
+            <div className="flex flex-wrap items-center gap-2">
+              <Button size="sm" variant="outline" onClick={() => downloadFile(editingFile)}>
+                <DownloadIcon className="size-4 mr-1" /> Download
+              </Button>
+              <Button size="sm" onClick={saveFile} disabled={fileSaving}>
+                <SaveIcon className="size-4 mr-1" /> {fileSaving ? 'Saving...' : 'Save'}
+              </Button>
+            </div>
+          </div>
+
+          <div className="h-[600px] overflow-hidden rounded-md border bg-background">
+            {isEditorDirty ? (
+              <div className="border-b px-4 py-2 text-xs text-muted-foreground">Unsaved changes</div>
+            ) : null}
             <Editor
-              height="600px"
+              height="100%"
               theme="vs-dark"
               language={getMonacoLanguage(editingFile)}
               value={fileContent}
@@ -1205,14 +1507,11 @@ export default function ServerDetailPage() {
               options={{
                 minimap: { enabled: false },
                 fontSize: 14,
-                wordWrap: 'on',
-                scrollBeyondLastLine: false,
                 automaticLayout: true,
-                padding: { top: 12 },
               }}
             />
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       )}
 
       {/* ═══ BACKUPS TAB ═══ */}

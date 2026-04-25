@@ -9,8 +9,8 @@ import { Input } from "@workspace/ui/components/input";
 import { Label } from "@workspace/ui/components/label";
 import { Button } from "@workspace/ui/components/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@workspace/ui/components/tabs";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@workspace/ui/components/select";
-import { THEME_PRESETS } from "@/lib/themes";
+import { ThemeCustomizer } from "@/components/theme-customizer";
+import { normalizePreset } from "@/lib/themes";
 
 function TestEmailButton() {
   const [email, setEmail] = useState("");
@@ -63,7 +63,7 @@ function TestEmailButton() {
 }
 
 export default function AdminSettingsPage() {
-  const { user } = use(AuthenticationContext);
+  use(AuthenticationContext);
   const [settings, setSettings] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -286,72 +286,26 @@ export default function AdminSettingsPage() {
                 />
               </div>
               <div className="my-2 border-t border-border" />
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="theme-default-preset">Default Theme Preset</Label>
-                <Select
-                  value={settings["theme.defaultPreset"] || "default"}
-                  onValueChange={(value) => handleChange("theme.defaultPreset", value)}
-                >
-                  <SelectTrigger id="theme-default-preset" className="w-full">
-                    <SelectValue placeholder="Select a default theme" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="default">Default</SelectItem>
-                    <SelectItem value="ocean">Ocean</SelectItem>
-                    <SelectItem value="forest">Forest</SelectItem>
-                    <SelectItem value="sunset">Sunset</SelectItem>
-                    <SelectItem value="custom">Custom</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="space-y-2">
+                <Label>Default theme</Label>
                 <p className="text-xs text-muted-foreground">
-                  This is used for all users until they choose their own preset in their profile.
+                  This is used for everyone until they pick a personal theme in their profile.
                 </p>
               </div>
-              {settings["theme.defaultPreset"] === "custom" && (
-                <>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="flex flex-col gap-2">
-                      <Label htmlFor="theme-custom-light-primary">Custom Light Primary</Label>
-                      <Input
-                        id="theme-custom-light-primary"
-                        placeholder={THEME_PRESETS.default.light["--primary"]}
-                        value={settings["theme.custom.light.primary"] || ""}
-                        onChange={(e) => handleChange("theme.custom.light.primary", e.target.value)}
-                      />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Label htmlFor="theme-custom-dark-primary">Custom Dark Primary</Label>
-                      <Input
-                        id="theme-custom-dark-primary"
-                        placeholder={THEME_PRESETS.default.dark["--primary"]}
-                        value={settings["theme.custom.dark.primary"] || ""}
-                        onChange={(e) => handleChange("theme.custom.dark.primary", e.target.value)}
-                      />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Label htmlFor="theme-custom-light-accent">Custom Light Accent</Label>
-                      <Input
-                        id="theme-custom-light-accent"
-                        placeholder={THEME_PRESETS.default.light["--accent"]}
-                        value={settings["theme.custom.light.accent"] || ""}
-                        onChange={(e) => handleChange("theme.custom.light.accent", e.target.value)}
-                      />
-                    </div>
-                    <div className="flex flex-col gap-2">
-                      <Label htmlFor="theme-custom-dark-accent">Custom Dark Accent</Label>
-                      <Input
-                        id="theme-custom-dark-accent"
-                        placeholder={THEME_PRESETS.default.dark["--accent"]}
-                        value={settings["theme.custom.dark.accent"] || ""}
-                        onChange={(e) => handleChange("theme.custom.dark.accent", e.target.value)}
-                      />
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    Enter valid CSS colors (example: <code>oklch(0.57 0.18 245)</code> or <code>#4f46e5</code>).
-                  </p>
-                </>
-              )}
+              <div className="pt-1">
+                <ThemeCustomizer
+                  preset={normalizePreset(settings["theme.defaultPreset"])}
+                  customLightPrimary={settings["theme.custom.light.primary"] || ""}
+                  customDarkPrimary={settings["theme.custom.dark.primary"] || ""}
+                  customLightAccent={settings["theme.custom.light.accent"] || ""}
+                  customDarkAccent={settings["theme.custom.dark.accent"] || ""}
+                  onPresetChange={(value) => handleChange("theme.defaultPreset", value)}
+                  onCustomLightPrimaryChange={(value) => handleChange("theme.custom.light.primary", value)}
+                  onCustomDarkPrimaryChange={(value) => handleChange("theme.custom.dark.primary", value)}
+                  onCustomLightAccentChange={(value) => handleChange("theme.custom.light.accent", value)}
+                  onCustomDarkAccentChange={(value) => handleChange("theme.custom.dark.accent", value)}
+                />
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
