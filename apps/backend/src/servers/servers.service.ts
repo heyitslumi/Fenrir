@@ -120,6 +120,7 @@ export class ServersService {
         cpu: totalCpu - usedCpu,
         servers: totalServers - servers.length,
       },
+      packageId: resources.packageId ?? null,
       coins: resources.coins ?? 0,
     };
   }

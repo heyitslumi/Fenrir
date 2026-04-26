@@ -504,6 +504,7 @@ export interface ResourceUsage {
   total: { ram: number; disk: number; cpu: number; servers: number };
   used: { ram: number; disk: number; cpu: number; servers: number };
   available: { ram: number; disk: number; cpu: number; servers: number };
+  packageId: string | null;
   coins: number;
 }
 

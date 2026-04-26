@@ -67,13 +67,20 @@ export default function CreateServerPage() {
         api.servers.locations(token),
         api.servers.list(token),
       ]);
-      setEggs(eggsData);
+      const packageId = serverData.resources?.packageId ?? null;
+      const visibleEggs = eggsData.filter((egg) => {
+        if (!egg.enabled) return false;
+        const allowedPackages = Array.isArray(egg.packageIds) ? egg.packageIds : [];
+        if (allowedPackages.length === 0) return true;
+        return packageId ? allowedPackages.includes(packageId) : false;
+      });
+      setEggs(visibleEggs);
       setLocations(locationsData);
       setResources(serverData.resources);
-      const firstEgg = eggsData[0];
+      const firstEgg = visibleEggs[0];
       const firstLoc = locationsData[0];
       if (firstEgg) {
-        setSelectedEgg(firstEgg.name);
+        setSelectedEgg(firstEgg.id);
         initEnvDefaults(firstEgg);
       }
       if (firstLoc) setSelectedLocation(firstLoc.remoteUuid);
