@@ -70,6 +70,11 @@ export class SettingsService {
       'theme.custom.dark.primary',
       'theme.custom.light.accent',
       'theme.custom.dark.accent',
+      'ads.enabled',
+      'ads.client',
+      'ads.slot',
+      'ads.layout',
+      'ads.format',
     ]);
   }
 }

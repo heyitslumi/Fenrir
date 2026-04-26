@@ -12,6 +12,7 @@ import {
   EggIcon,
   MapPinIcon,
   PackageIcon,
+  ShoppingCartIcon,
   SettingsIcon,
   RefreshCwIcon,
 } from 'lucide-react';
@@ -25,12 +26,13 @@ export default function AdminPage() {
     const token = getAccessToken();
     if (!token) return;
     try {
-      const [users, roles, eggs, locations, packages, nodes] = await Promise.allSettled([
+      const [users, roles, eggs, locations, packages, storeItems, nodes] = await Promise.allSettled([
         hasPermission('users.read') ? api.users.list(token) : Promise.reject(),
         hasPermission('roles.read') ? api.admin.listRoles(token) : Promise.reject(),
         hasPermission('eggs.read') ? api.admin.listEggs(token) : Promise.reject(),
         hasPermission('settings.read') ? api.admin.listLocations(token) : Promise.reject(),
         hasPermission('packages.read') ? api.admin.listPackages(token) : Promise.reject(),
+        hasPermission('store.read') ? api.admin.listStoreItems(token) : Promise.reject(),
         hasPermission('settings.read') ? api.admin.listNodes(token) : Promise.reject(),
       ]);
       setStats({
@@ -39,6 +41,7 @@ export default function AdminPage() {
         eggs: eggs.status === 'fulfilled' ? `${eggs.value.length} eggs` : null,
         locations: locations.status === 'fulfilled' ? `${locations.value.length} locations` : null,
         packages: packages.status === 'fulfilled' ? `${packages.value.length} packages` : null,
+        store: storeItems.status === 'fulfilled' ? `${storeItems.value.length} items` : null,
         nodes: nodes.status === 'fulfilled' ? `${nodes.value.length} nodes` : null,
       });
     } catch {
@@ -55,6 +58,7 @@ export default function AdminPage() {
     { title: 'Eggs', description: 'Manage server templates', icon: EggIcon, href: '/admin/eggs', stat: stats.eggs, permission: 'eggs.read' },
     { title: 'Locations', description: 'Manage server locations', icon: MapPinIcon, href: '/admin/locations', stat: stats.locations, permission: 'settings.read' },
     { title: 'Packages', description: 'Manage resource packages', icon: PackageIcon, href: '/admin/packages', stat: stats.packages, permission: 'packages.read' },
+    { title: 'Store Items', description: 'Manage coin store purchasables', icon: ShoppingCartIcon, href: '/admin/store', stat: stats.store, permission: 'store.read' },
     { title: 'Sync', description: 'Sync data from Pelican panel', icon: RefreshCwIcon, href: '/admin/sync', stat: null, permission: 'settings.write' },
     { title: 'Settings', description: 'Panel configuration', icon: SettingsIcon, href: '/admin/settings', stat: null, permission: 'settings.read' },
   ];

@@ -76,7 +76,7 @@ async function main() {
     { resource: 'ram', cost: 100, per: 1024, limit: 16, enabled: true },
     { resource: 'disk', cost: 50, per: 1024, limit: 20, enabled: true },
     { resource: 'cpu', cost: 200, per: 100, limit: 4, enabled: true },
-    { resource: 'servers', cost: 500, per: 1, limit: 5, enabled: true },
+    { resource: 'servers', cost: 500, per: 1, limit: 2, enabled: true },
   ];
 
   for (const item of storeDefaults) {
@@ -94,6 +94,16 @@ async function main() {
     'panel.currency': 'coins',
     'daily.enabled': 'true',
     'daily.amount': '50',
+    'ads.enabled': 'false',
+    'ads.client': '',
+    'ads.slot': '',
+    'ads.layout': 'in-article',
+    'ads.format': 'fluid',
+    'openapi.enabled': 'true',
+    'openapi.rate.short.limit': '5',
+    'openapi.rate.short.ttl': '1',
+    'openapi.rate.medium.limit': '100',
+    'openapi.rate.medium.ttl': '60',
   };
 
   for (const [key, value] of Object.entries(defaultSettings)) {

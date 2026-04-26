@@ -217,6 +217,8 @@ export default function ServerDetailPage() {
   const [pluginMsg, setPluginMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [pluginLoader, setPluginLoader] = useState('');
   const [pluginCategory, setPluginCategory] = useState('');
+  const [pluginPage, setPluginPage] = useState(1);
+  const [pluginTotalHits, setPluginTotalHits] = useState(0);
   const [installedPlugins, setInstalledPlugins] = useState<Set<string>>(new Set());
   const [installedPluginFiles, setInstalledPluginFiles] = useState<any[]>([]);
 
@@ -772,20 +774,28 @@ export default function ServerDetailPage() {
 
   // ── Plugins ──
 
-  const searchPlugins = useCallback((query: string, loader = pluginLoader, category = pluginCategory) => {
+  const searchPlugins = useCallback((query: string, loader = pluginLoader, category = pluginCategory, page = 1) => {
     setPluginSearching(true);
     setPluginMsg(null);
+    setPluginPage(page);
     const facetGroups: string[][] = [[`project_type:plugin`]];
     if (loader) facetGroups.push([`categories:${loader}`]);
     if (category) facetGroups.push([`categories:${category}`]);
     const facets = JSON.stringify(facetGroups);
+    const offset = (Math.max(page, 1) - 1) * 20;
     const base = query.trim()
-      ? `https://api.modrinth.com/v2/search?query=${encodeURIComponent(query)}&limit=20`
-      : `https://api.modrinth.com/v2/search?limit=20&index=downloads`;
+      ? `https://api.modrinth.com/v2/search?query=${encodeURIComponent(query)}&limit=20&offset=${offset}`
+      : `https://api.modrinth.com/v2/search?limit=20&offset=${offset}&index=downloads`;
     fetch(`${base}&facets=${encodeURIComponent(facets)}`)
       .then((r) => r.json())
-      .then((d) => setPluginResults(d.hits ?? []))
-      .catch(() => setPluginResults([]))
+      .then((d) => {
+        setPluginResults(d.hits ?? []);
+        setPluginTotalHits(d.total_hits ?? d.totalHits ?? 0);
+      })
+      .catch(() => {
+        setPluginResults([]);
+        setPluginTotalHits(0);
+      })
       .finally(() => setPluginSearching(false));
   }, [pluginLoader, pluginCategory]);
 
@@ -805,7 +815,7 @@ export default function ServerDetailPage() {
 
   useEffect(() => {
     if (tab === 'plugins') {
-      searchPlugins('');
+      searchPlugins('', pluginLoader, pluginCategory, 1);
       loadInstalledPlugins();
     }
   }, [tab]);
@@ -1788,11 +1798,11 @@ export default function ServerDetailPage() {
                 placeholder="Search plugins on Modrinth…"
                 value={pluginSearch}
                 onChange={(e) => setPluginSearch(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') searchPlugins(pluginSearch); }}
+                onKeyDown={(e) => { if (e.key === 'Enter') searchPlugins(pluginSearch, pluginLoader, pluginCategory, 1); }}
               />
               <Button
                 variant="outline"
-                onClick={() => searchPlugins(pluginSearch)}
+                onClick={() => searchPlugins(pluginSearch, pluginLoader, pluginCategory, 1)}
                 disabled={pluginSearching}
               >
                 <SearchIcon className="size-4" />
@@ -1801,7 +1811,7 @@ export default function ServerDetailPage() {
             <div className="flex gap-2 flex-wrap">
               <Select
                 value={pluginLoader || '__all__'}
-                onValueChange={(v) => { const val = v === '__all__' ? '' : v; setPluginLoader(val); searchPlugins(pluginSearch, val, pluginCategory); }}
+                onValueChange={(v) => { const val = v === '__all__' ? '' : v; setPluginLoader(val); searchPlugins(pluginSearch, val, pluginCategory, 1); }}
               >
                 <SelectTrigger className="w-40">
                   <SelectValue placeholder="All loaders" />
@@ -1820,7 +1830,7 @@ export default function ServerDetailPage() {
               </Select>
               <Select
                 value={pluginCategory || '__all__'}
-                onValueChange={(v) => { const val = v === '__all__' ? '' : v; setPluginCategory(val); searchPlugins(pluginSearch, pluginLoader, val); }}
+                onValueChange={(v) => { const val = v === '__all__' ? '' : v; setPluginCategory(val); searchPlugins(pluginSearch, pluginLoader, val, 1); }}
               >
                 <SelectTrigger className="w-44">
                   <SelectValue placeholder="All categories" />
@@ -1937,6 +1947,31 @@ export default function ServerDetailPage() {
                     )}
                   </div>
                 ))}
+              </div>
+            )}
+            {!pluginSearching && pluginResults.length > 0 && (
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <p className="text-xs text-muted-foreground">
+                  Page {pluginPage} · Showing {(pluginPage - 1) * 20 + 1}-{Math.min(pluginPage * 20, pluginTotalHits || pluginPage * 20)} of {pluginTotalHits || 'many'}
+                </p>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={pluginPage <= 1}
+                    onClick={() => searchPlugins(pluginSearch, pluginLoader, pluginCategory, pluginPage - 1)}
+                  >
+                    Previous
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    disabled={pluginTotalHits > 0 ? pluginPage * 20 >= pluginTotalHits : pluginResults.length < 20}
+                    onClick={() => searchPlugins(pluginSearch, pluginLoader, pluginCategory, pluginPage + 1)}
+                  >
+                    Next
+                  </Button>
+                </div>
               </div>
             )}
           </CardContent>

@@ -15,6 +15,7 @@ import { StoreModule } from './store/store.module.js';
 import { AdminModule } from './admin/admin.module.js';
 import { AfkModule } from './afk/afk.module.js';
 import { MailModule } from './mail/mail.module.js';
+import { OpenApiModule } from './openapi/openapi.module.js';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { MailModule } from './mail/mail.module.js';
     AdminModule,
     AfkModule,
     MailModule,
+    OpenApiModule,
   ],
   controllers: [AppController],
   providers: [

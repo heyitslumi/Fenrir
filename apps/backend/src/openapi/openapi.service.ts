@@ -100,6 +100,36 @@ export class OpenApiService {
     return { status: 'success', resources: updateData };
   }
 
+  async addResources(userId: string, data: { ram?: number; disk?: number; cpu?: number; servers?: number }) {
+    const resources = await this.prisma.userResources.findUnique({ where: { userId } });
+    if (!resources) throw new NotFoundException(`User "${userId}" not found`);
+
+    const updateData: Record<string, { increment: number }> = {};
+    if (typeof data.ram === 'number' && data.ram !== 0) updateData.extraRam = { increment: data.ram };
+    if (typeof data.disk === 'number' && data.disk !== 0) updateData.extraDisk = { increment: data.disk };
+    if (typeof data.cpu === 'number' && data.cpu !== 0) updateData.extraCpu = { increment: data.cpu };
+    if (typeof data.servers === 'number' && data.servers !== 0) updateData.extraServers = { increment: data.servers };
+
+    if (Object.keys(updateData).length === 0) {
+      throw new BadRequestException('Must provide at least one non-zero resource delta');
+    }
+
+    const updated = await this.prisma.userResources.update({
+      where: { userId },
+      data: updateData,
+    });
+
+    return {
+      status: 'success',
+      resources: {
+        ram: updated.extraRam,
+        disk: updated.extraDisk,
+        cpu: updated.extraCpu,
+        servers: updated.extraServers,
+      },
+    };
+  }
+
   async setPackage(userId: string, packageName: string | null) {
     const resources = await this.prisma.userResources.findUnique({ where: { userId } });
     if (!resources) throw new NotFoundException(`User "${userId}" not found`);

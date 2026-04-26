@@ -8,13 +8,11 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
-import { Throttle } from '@nestjs/throttler';
 import { OpenApiService } from './openapi.service.js';
 import { OpenApiGuard } from './openapi.guard.js';
 
 @Controller('openapi/v1')
 @UseGuards(OpenApiGuard)
-@Throttle({ short: { ttl: 1000, limit: 5 }, medium: { ttl: 60000, limit: 100 } })
 export class OpenApiController {
   constructor(private openApiService: OpenApiService) {}
 
@@ -39,6 +37,12 @@ export class OpenApiController {
   @HttpCode(HttpStatus.OK)
   async setResources(@Body() body: { id: string; ram?: number; disk?: number; cpu?: number; servers?: number }) {
     return this.openApiService.setResources(body.id, body);
+  }
+
+  @Post('addresources')
+  @HttpCode(HttpStatus.OK)
+  async addResources(@Body() body: { id: string; ram?: number; disk?: number; cpu?: number; servers?: number }) {
+    return this.openApiService.addResources(body.id, body);
   }
 
   @Post('setplan')
