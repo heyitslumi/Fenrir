@@ -47,8 +47,8 @@ export default function AdminStorePage() {
       await api.admin.upsertStoreItem(token, {
         resource: String(form.resource || '').trim().toLowerCase(),
         cost: parseInt(form.cost, 10) || 0,
-        per: parseInt(form.per, 10) || 1,
-        limit: parseInt(form.limit, 10) || 1,
+        per: Number.isNaN(parseInt(form.per, 10)) ? 1 : parseInt(form.per, 10),
+        limit: Number.isNaN(parseInt(form.limit, 10)) ? 1 : parseInt(form.limit, 10),
         enabled: Boolean(form.enabled),
       });
       setEditing(null);
@@ -107,11 +107,17 @@ export default function AdminStorePage() {
             </div>
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs">Per Purchase</Label>
-              <Input type="number" value={form.per ?? ''} onChange={(e) => updateForm('per', parseInt(e.target.value) || 1)} />
+              <Input type="number" value={form.per ?? ''} onChange={(e) => {
+                const parsed = parseInt(e.target.value, 10);
+                updateForm('per', Number.isNaN(parsed) ? '' : parsed);
+              }} />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs">Max Purchases / User</Label>
-              <Input type="number" value={form.limit ?? ''} onChange={(e) => updateForm('limit', parseInt(e.target.value) || 1)} />
+              <Input type="number" value={form.limit ?? ''} onChange={(e) => {
+                const parsed = parseInt(e.target.value, 10);
+                updateForm('limit', Number.isNaN(parsed) ? '' : parsed);
+              }} />
             </div>
             <div className="flex flex-col gap-1.5">
               <Label className="text-xs">Enabled</Label>

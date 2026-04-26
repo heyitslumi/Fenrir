@@ -38,8 +38,8 @@ export class ServersController {
   }
 
   @Get('eggs')
-  async getEggs() {
-    return this.serversService.getAvailableEggs();
+  async getEggs(@Request() req: any) {
+    return this.serversService.getAvailableEggs(req.user.id);
   }
 
   @Get('locations')

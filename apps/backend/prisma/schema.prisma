@@ -121,6 +121,8 @@ model Egg {
   category     String   @default("Game Servers")
   type         String   @default("")
   logo         String?
+  enabled      Boolean  @default(true)
+  packageIds   Json     @default("[]")
   free         Boolean  @default(true)
   remoteUuid   String   @unique              // UUID of this egg on the Calagopus panel
   nestUuid     String                        // UUID of the nest this egg belongs to

@@ -2,7 +2,7 @@
 
 import { use, useCallback, useEffect, useState } from 'react';
 import AuthenticationContext from '@/app/_context/authentication';
-import { api, type EggConfig } from '@/lib/api';
+import { api, type EggConfig, type PackageConfig } from '@/lib/api';
 import { getAccessToken } from '@/lib/auth';
 import { Card, CardContent, CardHeader, CardTitle } from '@workspace/ui/components/card';
 import { Input } from '@workspace/ui/components/input';
@@ -22,6 +22,7 @@ interface EggFull extends EggConfig {
 
 const emptyEgg: Omit<EggFull, 'id'> = {
   name: '', displayName: '', category: 'Game Servers', type: '', logo: null,
+  enabled: true, packageIds: [],
   free: true, remoteUuid: '', nestUuid: '', dockerImage: '', dockerImages: {},
   startup: '', environment: {},
   featureLimits: { databases: 0, backups: 1, allocations: 1, schedules: 0 },
@@ -32,6 +33,7 @@ const emptyEgg: Omit<EggFull, 'id'> = {
 export default function AdminEggsPage() {
   const { hasRole } = use(AuthenticationContext);
   const [eggs, setEggs] = useState<EggFull[]>([]);
+  const [packages, setPackages] = useState<PackageConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<string | 'new' | null>(null);
   const [form, setForm] = useState<any>({});
@@ -42,7 +44,9 @@ export default function AdminEggsPage() {
     if (!token) return;
     try {
       const data = await api.admin.listEggs(token) as EggFull[];
+      const packagesData = await api.admin.listPackages(token);
       setEggs(data);
+      setPackages(packagesData);
     } catch (err: any) {
       setMessage({ type: 'error', text: err.message });
     } finally {
@@ -127,7 +131,41 @@ export default function AdminEggsPage() {
             <Field label="Min CPU (%)" value={form.minCpu} onChange={(v) => updateForm('minCpu', parseInt(v) || 0)} type="number" />
             <Field label="Max CPU (%)" value={form.maxCpu} onChange={(v) => updateForm('maxCpu', parseInt(v) || 0)} type="number" />
             <Field label="Image URL" value={form.logo} onChange={(v) => updateForm('logo', v)} />
+            <div className="flex flex-col gap-1.5">
+              <Label className="text-xs">Enabled</Label>
+              <select
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                value={form.enabled ? 'true' : 'false'}
+                onChange={(e) => updateForm('enabled', e.target.value === 'true')}
+              >
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+              </select>
+            </div>
             <Field label="Sort Order" value={form.sortOrder} onChange={(v) => updateForm('sortOrder', parseInt(v) || 0)} type="number" />
+            <div className="md:col-span-2 lg:col-span-3 flex flex-col gap-2">
+              <Label className="text-xs">Limit to Packages (optional)</Label>
+              <p className="text-xs text-muted-foreground">Leave all unchecked to make this egg available for every package.</p>
+              <div className="grid gap-2 md:grid-cols-2">
+                {packages.map((pkg) => {
+                  const current = Array.isArray(form.packageIds) ? form.packageIds : [];
+                  const checked = current.includes(pkg.id);
+                  return (
+                    <label key={pkg.id} className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={(e) => {
+                          if (e.target.checked) updateForm('packageIds', [...current, pkg.id]);
+                          else updateForm('packageIds', current.filter((id: string) => id !== pkg.id));
+                        }}
+                      />
+                      <span>{pkg.name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
             <div className="md:col-span-2 lg:col-span-3 flex gap-2 justify-end">
               <Button variant="outline" onClick={cancel}><XIcon data-icon="inline-start" /> Cancel</Button>
               <Button onClick={save}><CheckIcon data-icon="inline-start" /> Save</Button>
@@ -168,7 +206,10 @@ export default function AdminEggsPage() {
                     )}
                   </td>
                   <td className="px-4 py-3">
-                    <p className="font-medium">{egg.displayName}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{egg.displayName}</p>
+                      {!egg.enabled && <Badge variant="outline">Disabled</Badge>}
+                    </div>
                     <p className="text-xs text-muted-foreground font-mono">{egg.name}</p>
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell">

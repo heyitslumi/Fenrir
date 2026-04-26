@@ -21,6 +21,8 @@ export class AdminService {
     category?: string;
     type?: string;
     logo?: string;
+    enabled?: boolean;
+    packageIds?: string[];
     free?: boolean;
     remoteUuid: string;
     nestUuid: string;
@@ -45,6 +47,8 @@ export class AdminService {
     category: string;
     type: string;
     logo: string;
+    enabled: boolean;
+    packageIds: string[];
     free: boolean;
     remoteUuid: string;
     nestUuid: string;

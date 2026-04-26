@@ -51,6 +51,12 @@ export class ServersService {
     return { ram: 2048, disk: 3072, cpu: 100, servers: 2 };
   }
 
+  private parseEggPackageIds(value: unknown): string[] {
+    const parsed = typeof value === 'string' ? JSON.parse(value) : value;
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter((v): v is string => typeof v === 'string' && v.trim().length > 0);
+  }
+
   async listUserServers(userId: string) {
     const resources = await this.getUserResources(userId);
 
@@ -114,6 +120,7 @@ export class ServersService {
         cpu: totalCpu - usedCpu,
         servers: totalServers - servers.length,
       },
+      packageId: resources.packageId ?? null,
       coins: resources.coins ?? 0,
     };
   }
@@ -174,6 +181,12 @@ export class ServersService {
     if (!eggConfig) eggConfig = await this.prisma.egg.findUnique({ where: { name: data.egg } });
     if (!eggConfig) eggConfig = await this.prisma.egg.findUnique({ where: { remoteUuid: data.egg } });
     if (!eggConfig) throw new NotFoundException(`Egg "${data.egg}" not found`);
+    if (!eggConfig.enabled) throw new BadRequestException(`Egg "${data.egg}" is disabled`);
+
+    const allowedPackageIds = this.parseEggPackageIds(eggConfig.packageIds);
+    if (allowedPackageIds.length > 0 && (!resources.packageId || !allowedPackageIds.includes(resources.packageId))) {
+      throw new ForbiddenException('This egg is not available for your package');
+    }
 
     // Fetch location config
     const locationConfig = await this.prisma.location.findUnique({ where: { remoteUuid: data.location } });
@@ -603,8 +616,20 @@ export class ServersService {
 
   // ── Eggs & Locations for frontend ──
 
-  async getAvailableEggs() {
-    return this.prisma.egg.findMany({ orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }] });
+  async getAvailableEggs(userId: string) {
+    const [resources, eggs] = await Promise.all([
+      this.getUserResources(userId),
+      this.prisma.egg.findMany({
+        where: { enabled: true },
+        orderBy: [{ category: 'asc' }, { sortOrder: 'asc' }],
+      }),
+    ]);
+
+    return eggs.filter((egg) => {
+      const allowedPackageIds = this.parseEggPackageIds(egg.packageIds);
+      if (allowedPackageIds.length === 0) return true;
+      return resources.packageId ? allowedPackageIds.includes(resources.packageId) : false;
+    });
   }
 
   async getAvailableLocations() {
