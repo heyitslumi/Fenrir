@@ -225,6 +225,12 @@ export class AdminController {
     return this.adminService.setUserCoins(id, coins);
   }
 
+  @Patch('users/:id/coins/add')
+  @Permissions('users.write')
+  addUserCoins(@Param('id') id: string, @Body('coins') coins: number) {
+    return this.adminService.addUserCoins(id, coins);
+  }
+
   @Patch('users/:id/package')
   @Permissions('users.write')
   setUserPackage(@Param('id') id: string, @Body('packageId') packageId: string | null) {

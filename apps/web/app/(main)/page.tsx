@@ -15,7 +15,7 @@ import {
   UsersIcon,
 } from "lucide-react"
 import AuthenticationContext from "@/app/_context/authentication"
-import { api, type PanelStats, type ResourceUsage } from "@/lib/api"
+import { api, type BrandConfig, type PanelStats, type ResourceUsage } from "@/lib/api"
 import { getAccessToken } from "@/lib/auth"
 import { cachedFetch, invalidateCache } from "@/lib/cache"
 import { Badge } from "@workspace/ui/components/badge"
@@ -28,11 +28,14 @@ import {
   CardTitle,
 } from "@workspace/ui/components/card"
 import { Progress } from "@workspace/ui/components/progress"
+import Script from "next/script"
 
 export default function DashboardPage() {
   const { user } = use(AuthenticationContext)
   const [resources, setResources] = useState<ResourceUsage | null>(null)
   const [stats, setStats] = useState<PanelStats | null>(null)
+  const [planName, setPlanName] = useState<string>("Default")
+  const [brand, setBrand] = useState<BrandConfig>({})
   const [dailyAvailable, setDailyAvailable] = useState(false)
   const [claimingDaily, setClaimingDaily] = useState(false)
 
@@ -41,7 +44,7 @@ export default function DashboardPage() {
     if (!token) return
 
     try {
-      const [serverData, statsData, dailyData] = await Promise.all([
+      const [serverData, statsData, dailyData, storeResources, brandData] = await Promise.all([
         cachedFetch(
           "dashboard:servers",
           () => api.servers.list(token),
@@ -57,11 +60,19 @@ export default function DashboardPage() {
           () => api.store.dailyStatus(token),
           30 * 1000
         ).catch(() => null),
+        cachedFetch(
+          "dashboard:store-resources",
+          () => api.store.resources(token),
+          60 * 1000,
+        ).catch(() => null),
+        cachedFetch("brand", () => api.settings.getBrand(), 5 * 60 * 1000).catch(() => null),
       ])
 
       if (serverData) setResources(serverData.resources)
       if (statsData) setStats(statsData)
       if (dailyData) setDailyAvailable(dailyData.available)
+      if (storeResources) setPlanName(storeResources.package?.name ?? "Default")
+      if (brandData) setBrand(brandData)
     } catch {
       // ignore dashboard fetch failures to keep page responsive
     }
@@ -70,6 +81,16 @@ export default function DashboardPage() {
   useEffect(() => {
     loadData()
   }, [loadData])
+
+  useEffect(() => {
+    if (brand["ads.enabled"] !== "true") return
+    if (!(window as any).adsbygoogle) return
+    try {
+      ;(window as any).adsbygoogle.push({})
+    } catch {
+      // ignore ad provider script errors
+    }
+  }, [brand])
 
   const handleClaimDaily = async () => {
     const token = getAccessToken()
@@ -207,6 +228,9 @@ export default function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
+            <Badge variant="outline" className="text-xs">
+              Plan: {planName}
+            </Badge>
             <Badge variant="secondary" className="text-xs">
               Available balance
             </Badge>
@@ -219,6 +243,26 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {brand["ads.enabled"] === "true" && brand["ads.client"] && brand["ads.slot"] && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Sponsored</CardTitle>
+            <CardDescription>Advertisement</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Script async src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${brand["ads.client"]}`} crossOrigin="anonymous" strategy="afterInteractive" />
+            <ins
+              className="adsbygoogle"
+              style={{ display: "block" }}
+              data-ad-client={brand["ads.client"]}
+              data-ad-slot={brand["ads.slot"]}
+              data-ad-format={brand["ads.format"] || "auto"}
+              data-full-width-responsive="true"
+            />
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

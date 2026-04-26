@@ -36,6 +36,7 @@ import {
   LockIcon,
   ClockIcon,
   PackageIcon,
+  ShoppingCartIcon,
   MapPinIcon,
   EggIcon,
   RefreshCwIcon,
@@ -114,6 +115,12 @@ const navAdmin: NavItem[] = [
     url: "/admin/packages",
     icon: PackageIcon,
     permission: "packages.read",
+  },
+  {
+    title: "Store Items",
+    url: "/admin/store",
+    icon: ShoppingCartIcon,
+    permission: "store.read",
   },
   {
     title: "Sync",
@@ -308,6 +315,15 @@ function UserCard() {
   const { user, isLoading, logout } = React.use(AuthenticationContext)
   const { resolvedTheme, setTheme } = useTheme()
   const isDark = resolvedTheme === "dark"
+  const [planName, setPlanName] = React.useState("Default plan")
+
+  React.useEffect(() => {
+    const token = getAccessToken()
+    if (!token) return
+    cachedFetch("sidebar:resources", () => api.store.resources(token), 60 * 1000)
+      .then((resources) => setPlanName(resources.package?.name ? `${resources.package.name} plan` : "Default plan"))
+      .catch(() => setPlanName("Default plan"))
+  }, [])
 
   return (
     <DropdownMenu>
@@ -334,7 +350,7 @@ function UserCard() {
               {user?.name || "User"}
             </p>
             <p className="truncate text-[11px] leading-tight text-muted-foreground">
-              Default plan
+              {planName}
             </p>
           </div>
           <ChevronRightIcon className="size-3.5 text-muted-foreground/60 transition-transform group-hover/user:translate-x-0.5" />

@@ -531,6 +531,15 @@ export class AdminService {
     });
   }
 
+  async addUserCoins(userId: string, coins: number) {
+    if (coins === 0) throw new BadRequestException('Coins delta cannot be 0');
+    return this.prisma.userResources.upsert({
+      where: { userId },
+      update: { coins: { increment: coins } },
+      create: { userId, coins: Math.max(coins, 0) },
+    });
+  }
+
   async setUserPackage(userId: string, packageId: string | null) {
     return this.prisma.userResources.upsert({
       where: { userId },

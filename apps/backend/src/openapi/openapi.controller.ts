@@ -41,6 +41,12 @@ export class OpenApiController {
     return this.openApiService.setResources(body.id, body);
   }
 
+  @Post('addresources')
+  @HttpCode(HttpStatus.OK)
+  async addResources(@Body() body: { id: string; ram?: number; disk?: number; cpu?: number; servers?: number }) {
+    return this.openApiService.addResources(body.id, body);
+  }
+
   @Post('setplan')
   @HttpCode(HttpStatus.OK)
   async setPlan(@Body() body: { id: string; package?: string }) {

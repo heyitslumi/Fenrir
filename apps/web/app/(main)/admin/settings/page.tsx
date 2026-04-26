@@ -341,6 +341,42 @@ export default function AdminSettingsPage() {
                   />
                 </div>
               </div>
+              <div className="my-1 border-t border-border" />
+              <div className="flex flex-col gap-2">
+                <Label htmlFor="ads-enabled">Dashboard Ads</Label>
+                <select
+                  id="ads-enabled"
+                  className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm"
+                  value={settings["ads.enabled"] || "false"}
+                  onChange={(e) => handleChange("ads.enabled", e.target.value)}
+                >
+                  <option value="false">Disabled</option>
+                  <option value="true">Enabled</option>
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  Enables Google AdSense ad rendering on the dashboard.
+                </p>
+              </div>
+              <div className="flex items-center gap-4">
+                <div className="flex flex-col gap-2 flex-1">
+                  <Label htmlFor="ads-client">Google Ad Client</Label>
+                  <Input
+                    id="ads-client"
+                    placeholder="ca-pub-xxxxxxxxxxxxxxxx"
+                    value={settings["ads.client"] || ""}
+                    onChange={(e) => handleChange("ads.client", e.target.value)}
+                  />
+                </div>
+                <div className="flex flex-col gap-2 flex-1">
+                  <Label htmlFor="ads-slot">Google Ad Slot</Label>
+                  <Input
+                    id="ads-slot"
+                    placeholder="1234567890"
+                    value={settings["ads.slot"] || ""}
+                    onChange={(e) => handleChange("ads.slot", e.target.value)}
+                  />
+                </div>
+              </div>
             </CardContent>
           </Card>
         </TabsContent>

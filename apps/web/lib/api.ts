@@ -454,6 +454,8 @@ export const api = {
       request<AdminUserDetail>(`/admin/users/${id}`, { token }),
     setUserCoins: (token: string, id: string, coins: number) =>
       request<any>(`/admin/users/${id}/coins`, { method: 'PATCH', token, body: { coins } }),
+    addUserCoins: (token: string, id: string, coins: number) =>
+      request<any>(`/admin/users/${id}/coins/add`, { method: 'PATCH', token, body: { coins } }),
     setUserPackage: (token: string, id: string, packageId: string | null) =>
       request<any>(`/admin/users/${id}/package`, { method: 'PATCH', token, body: { packageId } }),
     setUserRole: (token: string, id: string, roleId: string) =>
@@ -648,6 +650,11 @@ export interface BrandConfig {
   'theme.custom.dark.primary'?: string;
   'theme.custom.light.accent'?: string;
   'theme.custom.dark.accent'?: string;
+  'ads.enabled'?: string;
+  'ads.client'?: string;
+  'ads.slot'?: string;
+  'ads.layout'?: string;
+  'ads.format'?: string;
 }
 
 export interface AdminPermission {
